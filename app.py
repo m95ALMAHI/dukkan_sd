@@ -1,14 +1,15 @@
 import os
 import ssl
 from datetime import datetime
-from flask import Flask, jsonify
+from flask import Flask, jsonify, request
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.sql import func
+from werkzeug.security import generate_password_hash, check_password_hash
 
 app = Flask(__name__)
 
 # ==========================================
-# 1. إعدادات الاتصال وقاعدة البيانات (Supabase SSL)
+# 1. إعدادات قاعدة البيانات والاتصال السحابي
 # ==========================================
 raw_db_url = os.environ.get('DATABASE_URL')
 
@@ -25,7 +26,6 @@ else:
 app.config['SQLALCHEMY_DATABASE_URI'] = database_url
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
-# إعداد التشفير لحماية الاتصال السحابي
 ssl_context = ssl.create_default_context()
 ssl_context.check_hostname = False
 ssl_context.verify_mode = ssl.CERT_NONE
@@ -40,25 +40,19 @@ db = SQLAlchemy(app)
 
 
 # ==========================================
-# 2. الهيكل الهندسي للجداول (SaaS Core Models)
+# 2. هيكل البيانات (Database Models)
 # ==========================================
 
 class Tenant(db.Model):
-    """
-    جدول المتاجر (Tenants)
-    يمثل كل تاجر مشترك في المنصة ببيانات متجره الفريدة.
-    """
     __tablename__ = 'tenants'
     
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)
-    # النطاق الفرعي الفريد للمتجر (مثال: my-store.dukkansd.com)
     subdomain = db.Column(db.String(50), unique=True, nullable=False, index=True)
     is_active = db.Column(db.Boolean, default=True, nullable=False)
     created_at = db.Column(db.DateTime(timezone=True), server_default=func.now())
     updated_at = db.Column(db.DateTime(timezone=True), onupdate=func.now())
     
-    # علاقات الربط لسهولة الاستعلام البرمجي
     users = db.relationship('User', backref='tenant', lazy=True, cascade="all, delete-orphan")
     products = db.relationship('Product', backref='tenant', lazy=True, cascade="all, delete-orphan")
 
@@ -73,18 +67,14 @@ class Tenant(db.Model):
 
 
 class User(db.Model):
-    """
-    جدول المستخدمين (Users)
-    يمثل مديري الحسابات للمتاجر والمستخدمين التابعين لهم.
-    """
     __tablename__ = 'users'
     
     id = db.Column(db.Integer, primary_key=True)
     tenant_id = db.Column(db.Integer, db.ForeignKey('tenants.id', ondelete='CASCADE'), nullable=False, index=True)
     username = db.Column(db.String(50), nullable=False)
     email = db.Column(db.String(120), unique=True, nullable=False, index=True)
-    password_hash = db.Column(db.String(256), nullable=False)  # لتخزين كلمات المرور المشفرة مستقبلاً
-    role = db.Column(db.String(20), default="admin", nullable=False)  # admin, manager, staff
+    password_hash = db.Column(db.String(256), nullable=False)
+    role = db.Column(db.String(20), default="admin", nullable=False)
     is_active = db.Column(db.Boolean, default=True, nullable=False)
     created_at = db.Column(db.DateTime(timezone=True), server_default=func.now())
 
@@ -100,17 +90,13 @@ class User(db.Model):
 
 
 class Product(db.Model):
-    """
-    جدول المنتجات (Products)
-    معزول بالكامل برمجياً عبر ربطه بالـ tenant_id لضمان خصوصية بيانات التجار.
-    """
     __tablename__ = 'products'
     
     id = db.Column(db.Integer, primary_key=True)
     tenant_id = db.Column(db.Integer, db.ForeignKey('tenants.id', ondelete='CASCADE'), nullable=False, index=True)
     name = db.Column(db.String(150), nullable=False)
     description = db.Column(db.Text, nullable=True)
-    price = db.Column(db.Numeric(10, 2), nullable=False)  # استخدام Numeric بدلاً من Float لدقة الحسابات المالية
+    price = db.Column(db.Numeric(10, 2), nullable=False)
     stock = db.Column(db.Integer, default=0, nullable=False)
     image_url = db.Column(db.String(500), nullable=True)
     is_available = db.Column(db.Boolean, default=True, nullable=False)
@@ -131,21 +117,21 @@ class Product(db.Model):
 
 
 # ==========================================
-# 3. مسارات التحكم والفحص (Endpoints)
+# 3. مخرجات الـ API ومنافذ التحكم (SaaS REST Endpoints)
 # ==========================================
 
 @app.route('/')
 def index():
     return jsonify({
         "status": "success",
-        "message": "DukkanSD Multi-tenant Engine is core-ready and active.",
-        "system_epoch": "2026"
+        "message": "Welcome to DukkanSD Multi-tenant RESTful API Engine.",
+        "version": "1.0.0 (Production)"
     })
+
 
 @app.route('/db-test')
 def db_test():
     try:
-        # إنشاء الجداول الاحترافية الجديدة تلقائياً في Supabase عند أول طلب للمسار
         db.create_all()
         return jsonify({
             "database_status": "Connected & Synchronized Successfully!",
@@ -153,10 +139,109 @@ def db_test():
             "synchronized_tables": ["tenants", "users", "products"]
         })
     except Exception as e:
+        return jsonify({"database_status": "Failed to sync", "error": str(e)}), 500
+
+
+# ------------------------------------------
+# أ) منفذ تسجيل تاجر جديد (Create Tenant + Admin User)
+# ------------------------------------------
+@app.route('/api/v1/register', methods=['POST'])
+def register_tenant():
+    data = request.get_json() or {}
+    
+    # التحقق من المدخلات الأساسية بصفتنا خبراء
+    required_fields = ['shop_name', 'subdomain', 'admin_username', 'admin_email', 'admin_password']
+    missing_fields = [field for field in required_fields if field not in data]
+    if missing_fields:
+        return jsonify({"status": "error", "message": f"Missing required fields: {missing_fields}"}), 400
+
+    # التحقق من عدم تكرار النطاق الفرعي أو البريد الإلكتروني
+    if Tenant.query.filter_by(subdomain=data['subdomain'].lower()).first():
+        return jsonify({"status": "error", "message": "Subdomain is already registered"}), 400
+    if User.query.filter_by(email=data['admin_email'].lower()).first():
+        return jsonify({"status": "error", "message": "Email is already registered"}), 400
+
+    try:
+        # البدء في إنشاء البيانات داخل معاملة ذرية واحدة (Database Transaction)
+        new_tenant = Tenant(
+            name=data['shop_name'],
+            subdomain=data['subdomain'].lower()
+        )
+        db.session.add(new_tenant)
+        db.session.flush() # توليد ID التاجر مؤقتاً لربطه بالمستخدم دون حفظ نهائي في هذه اللحظة
+
+        # إنشاء مستخدم الإدارة وتشفير كلمة مروره بطريقة احترافية وآمنة
+        hashed_password = generate_password_hash(data['admin_password'])
+        new_admin = User(
+            tenant_id=new_tenant.id,
+            username=data['admin_username'],
+            email=data['admin_email'].lower(),
+            password_hash=hashed_password,
+            role="admin"
+        )
+        db.session.add(new_admin)
+        
+        # حفظ كل التغييرات دفعة واحدة
+        db.session.commit()
+
         return jsonify({
-            "database_status": "Failed to sync structures",
-            "error": str(e)
-        }), 500
+            "status": "success",
+            "message": "Tenant and administrator account created successfully.",
+            "tenant": new_tenant.to_dict(),
+            "admin": new_admin.to_dict()
+        }), 201
+
+    except Exception as e:
+        db.session.rollback() # التراجع التام في حال حدوث أي مشكلة شبكية أو برمجية
+        return jsonify({"status": "error", "message": "Transaction failed", "detail": str(e)}), 500
+
+
+# ------------------------------------------
+# ب) إدارة المنتجات مع العزل التام للمستأجرين (Scoped Product Management)
+# ------------------------------------------
+@app.route('/api/v1/products', methods=['GET', 'POST'])
+def handle_products():
+    # استخراج معرف المتجر من رأس الطلب لتطبيق العزل البرمجي
+    tenant_id = request.headers.get('X-Tenant-ID')
+    if not tenant_id:
+        return jsonify({"status": "error", "message": "Missing 'X-Tenant-ID' header for scoping requests"}), 401
+    
+    # التحقق من وجود المتجر ونشاطه
+    tenant = Tenant.query.get(tenant_id)
+    if not tenant or not tenant.is_active:
+        return jsonify({"status": "error", "message": "Tenant not found or inactive"}), 404
+
+    # 1. إضافة منتج جديد خاص بالمتجر المحدد فقط
+    if request.method == 'POST':
+        data = request.get_json() or {}
+        if 'name' not in data or 'price' not in data:
+            return jsonify({"status": "error", "message": "Product 'name' and 'price' are required"}), 400
+        
+        try:
+            new_product = Product(
+                tenant_id=tenant.id,
+                name=data['name'],
+                description=data.get('description'),
+                price=data['price'],
+                stock=data.get('stock', 0),
+                image_url=data.get('image_url')
+            )
+            db.session.add(new_product)
+            db.session.commit()
+            return jsonify({"status": "success", "product": new_product.to_dict()}), 201
+        except Exception as e:
+            db.session.rollback()
+            return jsonify({"status": "error", "message": str(e)}), 500
+
+    # 2. جلب منتجات المتجر المحدد فقط (معزولة تماماً عن بقية التجار)
+    products = Product.query.filter_by(tenant_id=tenant.id).all()
+    return jsonify({
+        "status": "success",
+        "tenant_name": tenant.name,
+        "product_count": len(products),
+        "products": [p.to_dict() for p in products]
+    })
+
 
 if __name__ == '__main__':
     app.run(debug=True)
