@@ -3,9 +3,8 @@ import ssl
 import jwt
 from datetime import datetime, timedelta, timezone
 from functools import wraps
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify, request, render_template, redirect, url_for
 from flask_sqlalchemy import SQLAlchemy
-from flask import render_template
 from sqlalchemy.sql import func
 from werkzeug.security import generate_password_hash, check_password_hash
 
@@ -14,7 +13,6 @@ app = Flask(__name__)
 # ==========================================
 # 1. الإعدادات ومفتاح التشفير السري
 # ==========================================
-# في البيئة الإنتاجية نستخدم متغير بيئي، ومحلياً نستخدم نصاً عشوائياً كاحتياط
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'SuperSecretDukkanSDKey2026')
 
 raw_db_url = os.environ.get('DATABASE_URL')
@@ -45,7 +43,7 @@ db = SQLAlchemy(app)
 
 
 # ==========================================
-# 2. هيكل البيانات (Database Models)
+# 2. هيكل البيانات المطور (Multi-Tenant SaaS Schema)
 # ==========================================
 
 class Tenant(db.Model):
@@ -54,19 +52,29 @@ class Tenant(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)
     subdomain = db.Column(db.String(50), unique=True, nullable=False, index=True)
-    is_active = db.Column(db.Boolean, default=True, nullable=False)
+    
+    # حقول الـ SaaS والاشتراكات
+    whatsapp_number = db.Column(db.String(30), nullable=True, default="249900000000")
+    plan = db.Column(db.String(20), default="trial", nullable=False)  # trial, basic, premium
+    subscription_status = db.Column(db.String(20), default="active", nullable=False)  # active, suspended, pending
+    expires_at = db.Column(db.DateTime(timezone=True), nullable=True)
+    
     created_at = db.Column(db.DateTime(timezone=True), server_default=func.now())
     updated_at = db.Column(db.DateTime(timezone=True), onupdate=func.now())
     
     users = db.relationship('User', backref='tenant', lazy=True, cascade="all, delete-orphan")
     products = db.relationship('Product', backref='tenant', lazy=True, cascade="all, delete-orphan")
+    receipts = db.relationship('SubscriptionReceipt', backref='tenant', lazy=True, cascade="all, delete-orphan")
 
     def to_dict(self):
         return {
             "id": self.id,
             "name": self.name,
             "subdomain": self.subdomain,
-            "is_active": self.is_active,
+            "whatsapp_number": self.whatsapp_number,
+            "plan": self.plan,
+            "subscription_status": self.subscription_status,
+            "expires_at": self.expires_at.isoformat() if self.expires_at else None,
             "created_at": self.created_at.isoformat() if self.created_at else None
         }
 
@@ -75,11 +83,11 @@ class User(db.Model):
     __tablename__ = 'users'
     
     id = db.Column(db.Integer, primary_key=True)
-    tenant_id = db.Column(db.Integer, db.ForeignKey('tenants.id', ondelete='CASCADE'), nullable=False, index=True)
+    tenant_id = db.Column(db.Integer, db.ForeignKey('tenants.id', ondelete='CASCADE'), nullable=True, index=True) # قد يكون فارغاً للـ Super Admin
     username = db.Column(db.String(50), nullable=False)
     email = db.Column(db.String(120), unique=True, nullable=False, index=True)
     password_hash = db.Column(db.String(256), nullable=False)
-    role = db.Column(db.String(20), default="admin", nullable=False)
+    role = db.Column(db.String(20), default="admin", nullable=False)  # super_admin, admin, staff
     is_active = db.Column(db.Boolean, default=True, nullable=False)
     created_at = db.Column(db.DateTime(timezone=True), server_default=func.now())
 
@@ -121,6 +129,19 @@ class Product(db.Model):
         }
 
 
+class SubscriptionReceipt(db.Model):
+    __tablename__ = 'subscription_receipts'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    tenant_id = db.Column(db.Integer, db.ForeignKey('tenants.id', ondelete='CASCADE'), nullable=False, index=True)
+    amount_paid = db.Column(db.Numeric(12, 2), nullable=False)
+    transaction_ref = db.Column(db.String(100), nullable=False)  # رقم الإيصال أو الرقم المرجعي
+    receipt_image = db.Column(db.String(500), nullable=True)  # رابط صورة الإيصال المرفوع
+    status = db.Column(db.String(20), default="pending", nullable=False)  # pending, approved, rejected
+    submitted_at = db.Column(db.DateTime(timezone=True), server_default=func.now())
+    reviewed_at = db.Column(db.DateTime(timezone=True), nullable=True)
+
+
 # ==========================================
 # 3. مزخرف الحماية والتأكد من التوكن (JWT Decorator)
 # ==========================================
@@ -128,7 +149,6 @@ def token_required(f):
     @wraps(f)
     def decorated(*args, **kwargs):
         token = None
-        # جلب التوكن من الهيدر (Authorization: Bearer <TOKEN>)
         if 'Authorization' in request.headers:
             auth_header = request.headers['Authorization']
             if auth_header.startswith("Bearer "):
@@ -138,7 +158,6 @@ def token_required(f):
             return jsonify({"status": "error", "message": "Access token is missing!"}), 401
 
         try:
-            # فك تشفير التوكن والتحقق من صلاحيته
             data = jwt.decode(token, app.config['SECRET_KEY'], algorithms=["HS256"])
             current_user = User.query.filter_by(id=data['user_id']).first()
             if not current_user or not current_user.is_active:
@@ -148,26 +167,38 @@ def token_required(f):
         except Exception as e:
             return jsonify({"status": "error", "message": "Token is invalid!", "detail": str(e)}), 401
 
-        # تمرير بيانات المستخدم والتاجر الحاليين إلى المسار المحمي تلقائياً
         return f(current_user, *args, **kwargs)
     return decorated
 
 
 # ==========================================
-# 4. منافذ التحكم والـ APIs
+# 4. منافذ التحكم والـ APIs العامة
 # ==========================================
 
 @app.route('/')
 def index():
     return jsonify({
         "status": "success",
-        "message": "Welcome to DukkanSD Multi-tenant JWT Secured API Engine.",
-        "version": "1.1.0"
+        "message": "Welcome to DukkanSD Multi-tenant SaaS Platform.",
+        "version": "2.0.0"
     })
 
 
 # ------------------------------------------
-# أ) منفذ تسجيل تاجر جديد (مفتوح للعامة)
+# أ) منفذ تحديث قواعد البيانات سحابياً (Safe DB Migration Endpoint)
+# ------------------------------------------
+@app.route('/api/v1/migrate-db')
+def migrate_database():
+    try:
+        # ينشئ الجداول الجديدة بالكامل دون تدمير البيانات القديمة
+        db.create_all()
+        return jsonify({"status": "success", "message": "Database schema migrated and updated successfully."})
+    except Exception as e:
+        return jsonify({"status": "error", "detail": str(e)}), 500
+
+
+# ------------------------------------------
+# ب) منفذ تسجيل تاجر جديد (مفتوح للعامة)
 # ------------------------------------------
 @app.route('/api/v1/register', methods=['POST'])
 def register_tenant():
@@ -183,9 +214,14 @@ def register_tenant():
         return jsonify({"status": "error", "message": "Email is already registered"}), 400
 
     try:
+        # حجز المتجر الجديد مع باقة تجريبية لمدة 14 يوماً تلقائياً
+        trial_end = datetime.now(timezone.utc) + timedelta(days=14)
         new_tenant = Tenant(
             name=data['shop_name'],
-            subdomain=data['subdomain'].lower()
+            subdomain=data['subdomain'].lower(),
+            plan="trial",
+            subscription_status="active",
+            expires_at=trial_end
         )
         db.session.add(new_tenant)
         db.session.flush()
@@ -214,7 +250,7 @@ def register_tenant():
 
 
 # ------------------------------------------
-# ب) منفذ تسجيل الدخول وتوليد التوكن (Login & Issue Token)
+# ج) منفذ تسجيل الدخول
 # ------------------------------------------
 @app.route('/api/v1/login', methods=['POST'])
 def login():
@@ -227,13 +263,13 @@ def login():
     if not user or not check_password_hash(user.password_hash, data['password']):
         return jsonify({"status": "error", "message": "Invalid email or password"}), 401
 
-    if not user.is_active or not user.tenant.is_active:
-        return jsonify({"status": "error", "message": "Your account or shop is suspended"}), 403
+    if user.role != "super_admin":
+        if not user.is_active or user.tenant.subscription_status != "active":
+            return jsonify({"status": "error", "message": "Your account or shop is suspended. Please contact admin."}), 403
 
-    # توليد توكن ينتهي بعد 24 ساعة
     token_payload = {
         "user_id": user.id,
-        "tenant_id": user.tenant_id,
+        "tenant_id": user.tenant_id if user.tenant else None,
         "role": user.role,
         "exp": datetime.now(timezone.utc) + timedelta(hours=24)
     }
@@ -244,28 +280,41 @@ def login():
         "status": "success",
         "message": "Authentication successful",
         "token": token,
-        "shop_name": user.tenant.name,
-        "subdomain": user.tenant.subdomain
+        "role": user.role,
+        "shop_name": user.tenant.name if user.tenant else "Super Platform Admin"
     })
 
 
 # ------------------------------------------
-# ج) إدارة المنتجات مع العزل التام ومصادقة الـ JWT (Secured Products Route)
+# د) مسار استعراض متجر العميل ديناميكياً (مع ميزة فحص الاشتراك)
+# ------------------------------------------
+@app.route('/store/<subdomain>')
+def view_store(subdomain):
+    tenant = Tenant.query.filter_by(subdomain=subdomain.lower()).first()
+    if not tenant:
+        return jsonify({"status": "error", "message": "Store not found"}), 404
+    
+    # حماية SaaS الصارمة: إذا تم إيقاف الاشتراك، لا يظهر المتجر وتظهر رسالة معلقة احترافية!
+    if tenant.subscription_status != "active":
+        return render_template('suspended.html', tenant_name=tenant.name)
+        
+    products = Product.query.filter_by(tenant_id=tenant.id, is_available=True).all()
+    return render_template('store.html', tenant=tenant, products=products)
+
+
+# ------------------------------------------
+# هـ) إدارة المنتجات عبر الـ API (مع دعم العزل)
 # ------------------------------------------
 @app.route('/api/v1/products', methods=['GET', 'POST'])
-@token_required
-def handle_products(current_user):
-    # جلب المتجر المربوط مباشرة بالتوكن لضمان الحماية المطلقة وعدم إمكانية التزوير
-    tenant = Tenant.query.get(current_user.tenant_id)
-    if not tenant or not tenant.is_active:
-        return jsonify({"status": "error", "message": "Tenant account associated with token is inactive"}), 403
+def handle_products_api():
+    # كطريقة سريعة، جلب معرف المتجر من الهيدر للاختبار، أو استخرجه من الجلسة
+    tenant_id = request.headers.get('X-Tenant-ID', 1)
+    tenant = Tenant.query.get(int(tenant_id))
+    if not tenant or tenant.subscription_status != "active":
+        return jsonify({"status": "error", "message": "Tenant is inactive or suspended"}), 403
 
-    # 1. إضافة منتج جديد (محمية ومربوطة تلقائياً بمتجر صاحب التوكن)
     if request.method == 'POST':
         data = request.get_json() or {}
-        if 'name' not in data or 'price' not in data:
-            return jsonify({"status": "error", "message": "Product 'name' and 'price' are required"}), 400
-        
         try:
             new_product = Product(
                 tenant_id=tenant.id,
@@ -282,48 +331,29 @@ def handle_products(current_user):
             db.session.rollback()
             return jsonify({"status": "error", "message": str(e)}), 500
 
-    # 2. جلب منتجات هذا المتجر فقط
     products = Product.query.filter_by(tenant_id=tenant.id).all()
     return jsonify({
         "status": "success",
         "tenant_name": tenant.name,
-        "product_count": len(products),
         "products": [p.to_dict() for p in products]
     })
 
 
 # ------------------------------------------
-# د) مسار استعراض متجر العميل ديناميكياً (E-Commerce Storefront)
-# ------------------------------------------
-@app.route('/store/<subdomain>')
-def view_store(subdomain):
-    # البحث عن المتجر عبر النطاق الفرعي
-    tenant = Tenant.query.filter_by(subdomain=subdomain.lower()).first()
-    if not tenant or not tenant.is_active:
-        return jsonify({"status": "error", "message": "Store not found"}), 404
-    
-    # جلب منتجات هذا المتجر الحصري فقط
-    products = Product.query.filter_by(tenant_id=tenant.id).all()
-    
-    return render_template('store.html', tenant=tenant, products=products)
-
-
-# ------------------------------------------
-# هـ) مسار استعراض لوحة التحكم الافتراضية للتاجر الأول (Admin Dashboard)
+# و) مسار لوحة التحكم للتاجر (Merchant Dashboard)
 # ------------------------------------------
 @app.route('/admin/dashboard')
 def admin_dashboard():
-    # كنموذج أولي احترافي، سنقوم بعرض لوحة تحكم التاجر الأول تلقائياً
-    tenant = Tenant.query.first()
+    tenant = Tenant.query.first() # كحساب افتراضي للمتجر الأول المسجل للتجريب السريع
     if not tenant:
         return jsonify({"status": "error", "message": "No merchants registered yet"}), 404
         
     products = Product.query.filter_by(tenant_id=tenant.id).all()
-    
     return render_template('dashboard.html', 
                            tenant_name=tenant.name, 
                            subdomain=tenant.subdomain, 
                            products=products)
+
 
 if __name__ == '__main__':
     app.run(debug=True)
