@@ -59,6 +59,8 @@ class Tenant(db.Model):
     subscription_status = db.Column(db.String(20), default="active", nullable=False)  # active, suspended, pending
     expires_at = db.Column(db.DateTime(timezone=True), nullable=True)
 
+    is_active = db.Column(db.Boolean, default=True, nullable=False)
+
     created_at = db.Column(db.DateTime(timezone=True), server_default=func.now())
     updated_at = db.Column(db.DateTime(timezone=True), onupdate=func.now())
 
