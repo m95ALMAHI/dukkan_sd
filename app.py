@@ -1,4 +1,5 @@
 import os
+import ssl
 from flask import Flask, jsonify
 from flask_sqlalchemy import SQLAlchemy
 
@@ -9,7 +10,6 @@ raw_db_url = os.environ.get('DATABASE_URL')
 
 # 2. تعديل الرابط برمجياً ليتوافق مع pg8000 وبايثون 3.14
 if raw_db_url:
-    # نقوم باستبدال بداية الرابط ليكون متوافقاً مع pg8000
     if raw_db_url.startswith("postgres://"):
         database_url = raw_db_url.replace("postgres://", "postgresql+pg8000://", 1)
     elif raw_db_url.startswith("postgresql://"):
@@ -23,15 +23,26 @@ else:
 app.config['SQLALCHEMY_DATABASE_URI'] = database_url
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
+# 3. إعداد الـ SSL ليتوافق مع محرك pg8000 بشكل صحيح لتجاوز حظر الاتصال بـ Supabase
+ssl_context = ssl.create_default_context()
+ssl_context.check_hostname = False
+ssl_context.verify_mode = ssl.CERT_NONE
+
+app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
+    "connect_args": {
+        "ssl_context": ssl_context
+    }
+}
+
 db = SQLAlchemy(app)
 
-# 3. تعريف جدول تجريبي للتأكد من نجاح الاتصال بـ Supabase
+# 4. تعريف جدول تجريبي للتأكد من نجاح الاتصال بـ Supabase
 class HealthCheck(db.Model):
     __tablename__ = 'health_check'
     id = db.Column(db.Integer, primary_key=True)
     status = db.Column(db.String(50), default="Healthy")
 
-# 4. المسارات الأساسية (Routes) لعمل المنصة
+# 5. المسارات الأساسية (Routes) لعمل المنصة
 @app.route('/')
 def index():
     return jsonify({
@@ -47,7 +58,7 @@ def db_test():
         db.create_all()
         return jsonify({
             "database_status": "Connected & Synchronized Successfully!",
-            "driver_used": "pg8000 (Python 3.14 compatible)"
+            "driver_used": "pg8000 with SSL enabled"
         })
     except Exception as e:
         return jsonify({
@@ -55,6 +66,6 @@ def db_test():
             "error": str(e)
         }), 500
 
-# 5. محرك التشغيل للتجربة المحلية
+# 6. محرك التشغيل للتجربة المحلية
 if __name__ == '__main__':
     app.run(debug=True)
