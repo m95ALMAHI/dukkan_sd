@@ -3,7 +3,7 @@ import ssl
 import jwt
 from datetime import datetime, timedelta, timezone
 from functools import wraps
-from flask import Flask, jsonify, request, render_template, redirect, url_for
+from flask import Flask, jsonify, request, render_template, redirect, url_for, session
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.sql import func
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -48,20 +48,20 @@ db = SQLAlchemy(app)
 
 class Tenant(db.Model):
     __tablename__ = 'tenants'
-    
+
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)
     subdomain = db.Column(db.String(50), unique=True, nullable=False, index=True)
-    
+
     # حقول الـ SaaS والاشتراكات
     whatsapp_number = db.Column(db.String(30), nullable=True, default="249900000000")
     plan = db.Column(db.String(20), default="trial", nullable=False)  # trial, basic, premium
     subscription_status = db.Column(db.String(20), default="active", nullable=False)  # active, suspended, pending
     expires_at = db.Column(db.DateTime(timezone=True), nullable=True)
-    
+
     created_at = db.Column(db.DateTime(timezone=True), server_default=func.now())
     updated_at = db.Column(db.DateTime(timezone=True), onupdate=func.now())
-    
+
     users = db.relationship('User', backref='tenant', lazy=True, cascade="all, delete-orphan")
     products = db.relationship('Product', backref='tenant', lazy=True, cascade="all, delete-orphan")
     receipts = db.relationship('SubscriptionReceipt', backref='tenant', lazy=True, cascade="all, delete-orphan")
@@ -81,7 +81,7 @@ class Tenant(db.Model):
 
 class User(db.Model):
     __tablename__ = 'users'
-    
+
     id = db.Column(db.Integer, primary_key=True)
     tenant_id = db.Column(db.Integer, db.ForeignKey('tenants.id', ondelete='CASCADE'), nullable=True, index=True) # قد يكون فارغاً للـ Super Admin
     username = db.Column(db.String(50), nullable=False)
@@ -104,7 +104,7 @@ class User(db.Model):
 
 class Product(db.Model):
     __tablename__ = 'products'
-    
+
     id = db.Column(db.Integer, primary_key=True)
     tenant_id = db.Column(db.Integer, db.ForeignKey('tenants.id', ondelete='CASCADE'), nullable=False, index=True)
     name = db.Column(db.String(150), nullable=False)
@@ -131,7 +131,7 @@ class Product(db.Model):
 
 class SubscriptionReceipt(db.Model):
     __tablename__ = 'subscription_receipts'
-    
+
     id = db.Column(db.Integer, primary_key=True)
     tenant_id = db.Column(db.Integer, db.ForeignKey('tenants.id', ondelete='CASCADE'), nullable=False, index=True)
     amount_paid = db.Column(db.Numeric(12, 2), nullable=False)
@@ -172,56 +172,131 @@ def token_required(f):
 
 
 # ==========================================
-# 4. منافذ التحكم والـ APIs العامة
+# 4. مسارات واجهات العرض (HTML Templates & Sessions)
 # ==========================================
 
+# 1. مسار صفحة الهبوط الرئيسية (SaaS Landing Page)
 @app.route('/')
 def index():
-    return jsonify({
-        "status": "success",
-        "message": "Welcome to DukkanSD Multi-tenant SaaS Platform.",
-        "version": "2.0.0"
-    })
+    return render_template('landing.html')
 
 
-# ------------------------------------------
+# 2. مسار صفحة التسجيل (Register Page)
+@app.route('/register')
+def register_page():
+    return render_template('register.html')
+
+
+# 3. مسار صفحة تسجيل الدخول للتجار (Merchant Login)
+@app.route('/login', methods=['GET', 'POST'])
+def login_page():
+    if request.method == 'POST':
+        email = request.form.get('email')
+        password = request.form.get('password')
+        
+        user = User.query.filter_by(email=email.lower()).first()
+        if user and check_password_hash(user.password_hash, password):
+            if user.role != "super_admin":
+                if not user.is_active or user.tenant.subscription_status != "active":
+                    return render_template('login.html', error="حسابك أو متجرك معلق حالياً. يرجى التواصل مع الإدارة.")
+            
+            # حفظ بيانات المستخدم في الجلسة بأمان
+            session['user_id'] = user.id
+            session['tenant_id'] = user.tenant_id
+            session['role'] = user.role
+            
+            if user.role == 'super_admin':
+                return redirect(url_for('super_admin_dashboard_updated'))
+            else:
+                return redirect(url_for('admin_dashboard'))
+        else:
+            return render_template('login.html', error="البريد الإلكتروني أو كلمة المرور غير صحيحة.")
+            
+    return render_template('login.html')
+
+
+# 4. مسار لوحة تحكم التاجر المحمية (Secure Dashboard)
+@app.route('/admin/dashboard')
+def admin_dashboard():
+    user_id = session.get('user_id')
+    tenant_id = session.get('tenant_id')
+    
+    if not user_id or not tenant_id:
+        return redirect(url_for('login_page'))
+        
+    tenant = Tenant.query.get(tenant_id)
+    if not tenant or tenant.subscription_status != "active":
+        return redirect(url_for('login_page'))
+        
+    products = Product.query.filter_by(tenant_id=tenant.id).all()
+    return render_template('dashboard.html', 
+                           tenant=tenant, 
+                           products=products)
+
+
+# 5. تسجيل الخروج (Logout)
+@app.route('/logout')
+def logout():
+    session.clear()
+    return redirect(url_for('login_page'))
+
+
+# ==========================================
+# 5. منافذ التحكم والـ APIs الخلفية
+# ==========================================
+
 # أ) منفذ تحديث قواعد البيانات سحابياً (Safe DB Migration Endpoint)
-# ------------------------------------------
 @app.route('/api/v1/migrate-db')
 def migrate_database():
     try:
-        # ينشئ الجداول الجديدة بالكامل دون تدمير البيانات القديمة
         db.create_all()
         return jsonify({"status": "success", "message": "Database schema migrated and updated successfully."})
     except Exception as e:
         return jsonify({"status": "error", "detail": str(e)}), 500
 
 
-# ------------------------------------------
-# ب) منفذ تسجيل تاجر جديد (مفتوح للعامة)
-# ------------------------------------------
+# ب) منفذ تسجيل تاجر جديد (محدث لدعم خطة الاشتراك)
 @app.route('/api/v1/register', methods=['POST'])
 def register_tenant():
-    data = request.get_json() or {}
-    required_fields = ['shop_name', 'subdomain', 'admin_username', 'admin_email', 'admin_password']
-    missing_fields = [field for field in required_fields if field not in data]
-    if missing_fields:
-        return jsonify({"status": "error", "message": f"Missing required fields: {missing_fields}"}), 400
+    # التحقق من نوع البيانات القادمة (Form Data أو JSON) لدعم إرسال النموذج مباشرة
+    if request.is_json:
+        data = request.get_json()
+    else:
+        data = request.form
 
-    if Tenant.query.filter_by(subdomain=data['subdomain'].lower()).first():
-        return jsonify({"status": "error", "message": "Subdomain is already registered"}), 400
-    if User.query.filter_by(email=data['admin_email'].lower()).first():
-        return jsonify({"status": "error", "message": "Email is already registered"}), 400
+    required_fields = ['shop_name', 'subdomain', 'admin_username', 'admin_email', 'admin_password']
+    missing_fields = [field for field in required_fields if field not in data or not data[field]]
+    if missing_fields:
+        if request.is_json:
+            return jsonify({"status": "error", "message": f"Missing required fields: {missing_fields}"}), 400
+        else:
+            return render_template('register.html', error=f"الرجاء ملء جميع الحقول المطلوبة.")
+
+    subdomain = data['subdomain'].strip().lower()
+    email = data['admin_email'].strip().lower()
+    whatsapp = data.get('whatsapp_number', '249900000000').strip()
+    selected_plan = data.get('plan', 'trial') # trial, basic, premium
+
+    if Tenant.query.filter_by(subdomain=subdomain).first():
+        msg = "رابط المتجر محجوز مسبقاً، اختر اسماً آخر."
+        return jsonify({"status": "error", "message": msg}) if request.is_json else render_template('register.html', error=msg)
+        
+    if User.query.filter_by(email=email).first():
+        msg = "البريد الإلكتروني مسجل بالفعل."
+        return jsonify({"status": "error", "message": msg}) if request.is_json else render_template('register.html', error=msg)
 
     try:
-        # حجز المتجر الجديد مع باقة تجريبية لمدة 14 يوماً تلقائياً
-        trial_end = datetime.now(timezone.utc) + timedelta(days=14)
+        # حساب تاريخ انتهاء الفترة التجريبية أو الاشتراك
+        days_limit = 14 if selected_plan == "trial" else 30
+        expire_date = datetime.now(timezone.utc) + timedelta(days=days_limit)
+
         new_tenant = Tenant(
             name=data['shop_name'],
-            subdomain=data['subdomain'].lower(),
-            plan="trial",
+            subdomain=subdomain,
+            whatsapp_number=whatsapp,
+            plan=selected_plan,
             subscription_status="active",
-            expires_at=trial_end
+            expires_at=expire_date
         )
         db.session.add(new_tenant)
         db.session.flush()
@@ -230,36 +305,41 @@ def register_tenant():
         new_admin = User(
             tenant_id=new_tenant.id,
             username=data['admin_username'],
-            email=data['admin_email'].lower(),
+            email=email,
             password_hash=hashed_password,
             role="admin"
         )
         db.session.add(new_admin)
         db.session.commit()
 
-        return jsonify({
-            "status": "success",
-            "message": "Tenant and administrator account created successfully.",
-            "tenant": new_tenant.to_dict(),
-            "admin": new_admin.to_dict()
-        }), 201
+        # تسجيل الدخول التلقائي وحفظ الجلسة للتاجر المسجل حديثاً
+        session['user_id'] = new_admin.id
+        session['tenant_id'] = new_tenant.id
+        session['role'] = new_admin.role
+
+        if request.is_json:
+            return jsonify({
+                "status": "success",
+                "message": "Tenant registered successfully.",
+                "tenant": new_tenant.to_dict()
+            }), 201
+        else:
+            return redirect(url_for('admin_dashboard'))
 
     except Exception as e:
         db.session.rollback()
         return jsonify({"status": "error", "message": "Transaction failed", "detail": str(e)}), 500
 
 
-# ------------------------------------------
-# ج) منفذ تسجيل الدخول
-# ------------------------------------------
+# ج) منفذ تسجيل الدخول عبر الـ API (للتطبيقات الخارجية إن وجدت)
 @app.route('/api/v1/login', methods=['POST'])
-def login():
+def login_api():
     data = request.get_json() or {}
     if 'email' not in data or 'password' not in data:
         return jsonify({"status": "error", "message": "Email and password are required"}), 400
 
     user = User.query.filter_by(email=data['email'].lower()).first()
-    
+
     if not user or not check_password_hash(user.password_hash, data['password']):
         return jsonify({"status": "error", "message": "Invalid email or password"}), 401
 
@@ -273,7 +353,7 @@ def login():
         "role": user.role,
         "exp": datetime.now(timezone.utc) + timedelta(hours=24)
     }
-    
+
     token = jwt.encode(token_payload, app.config['SECRET_KEY'], algorithm="HS256")
 
     return jsonify({
@@ -285,29 +365,23 @@ def login():
     })
 
 
-# ------------------------------------------
 # د) مسار استعراض متجر العميل ديناميكياً (مع ميزة فحص الاشتراك)
-# ------------------------------------------
 @app.route('/store/<subdomain>')
 def view_store(subdomain):
     tenant = Tenant.query.filter_by(subdomain=subdomain.lower()).first()
     if not tenant:
         return jsonify({"status": "error", "message": "Store not found"}), 404
-    
-    # حماية SaaS الصارمة: إذا تم إيقاف الاشتراك، لا يظهر المتجر وتظهر رسالة معلقة احترافية!
+
     if tenant.subscription_status != "active":
         return render_template('suspended.html', tenant_name=tenant.name)
-        
+
     products = Product.query.filter_by(tenant_id=tenant.id, is_available=True).all()
     return render_template('store.html', tenant=tenant, products=products)
 
 
-# ------------------------------------------
 # هـ) إدارة المنتجات عبر الـ API (مع دعم العزل)
-# ------------------------------------------
 @app.route('/api/v1/products', methods=['GET', 'POST'])
 def handle_products_api():
-    # كطريقة سريعة، جلب معرف المتجر من الهيدر للاختبار، أو استخرجه من الجلسة
     tenant_id = request.headers.get('X-Tenant-ID', 1)
     tenant = Tenant.query.get(int(tenant_id))
     if not tenant or tenant.subscription_status != "active":
@@ -339,39 +413,23 @@ def handle_products_api():
     })
 
 
-# ------------------------------------------
-# و) مسار لوحة التحكم للتاجر (Merchant Dashboard)
-# ------------------------------------------
-@app.route('/admin/dashboard')
-def admin_dashboard():
-    tenant = Tenant.query.first() # كحساب افتراضي للمتجر الأول المسجل للتجريب السريع
-    if not tenant:
-        return jsonify({"status": "error", "message": "No merchants registered yet"}), 404
-        
-    products = Product.query.filter_by(tenant_id=tenant.id).all()
-    return render_template('dashboard.html', 
-                           tenant_name=tenant.name, 
-                           subdomain=tenant.subdomain, 
-                           products=products)
-
-# ------------------------------------------
-# ز) مسار لوحة الإدارة العليا (Super Admin Panel Route)
-# ------------------------------------------
+# و) مسار لوحة الإدارة العليا للـ Super Admin
 @app.route('/super-admin/dashboard')
-def super_admin_dashboard():
-    # في مرحلة التطوير السريع، سنعرض الواجهة مباشرة لمراقبة المتاجر
+def super_admin_dashboard_updated():
+    # التأكد من صلاحية الدخول للـ Super Admin
+    if session.get('role') != 'super_admin':
+        return redirect(url_for('login_page'))
     tenants = Tenant.query.all()
-    return render_template('super_admin.html', tenants=tenants)
+    receipts = SubscriptionReceipt.query.filter_by(status="pending").all()
+    return render_template('super_admin.html', tenants=tenants, receipts=receipts)
 
 
-# ------------------------------------------
-# ح) منفذ تعديل حالة المتجر سحابياً (SaaS API Control)
-# ------------------------------------------
+# ز) منفذ تعديل حالة المتجر سحابياً (SaaS API Control)
 @app.route('/api/v1/super-admin/update-tenant', methods=['POST'])
 def super_admin_update_tenant():
     data = request.get_json() or {}
     tenant_id = data.get('tenant_id')
-    new_status = data.get('status') # active أو suspended
+    new_status = data.get('status')
 
     if not tenant_id or not new_status:
         return jsonify({"status": "error", "message": "Missing required fields"}), 400
@@ -389,9 +447,7 @@ def super_admin_update_tenant():
         return jsonify({"status": "error", "message": str(e)}), 500
 
 
-# ------------------------------------------
-# ط) منفذ إرسال إيصال الدفع من التاجر (Merchant billing submit)
-# ------------------------------------------
+# ح) منفذ إرسال إيصال الدفع من التاجر
 @app.route('/api/v1/submit-receipt', methods=['POST'])
 def submit_receipt():
     data = request.get_json() or {}
@@ -411,14 +467,12 @@ def submit_receipt():
         return jsonify({"status": "error", "message": str(e)}), 500
 
 
-# ------------------------------------------
-# ي) منفذ المشرف العام لمعالجة إيصالات المتاجر (Approve/Reject Receipts)
-# ------------------------------------------
+# ط) منفذ معالجة إيصالات المتاجر
 @app.route('/api/v1/super-admin/handle-receipt', methods=['POST'])
 def super_admin_handle_receipt():
     data = request.get_json() or {}
     receipt_id = data.get('receipt_id')
-    action = data.get('action') # approved أو rejected
+    action = data.get('action')
 
     receipt = SubscriptionReceipt.query.get(int(receipt_id))
     if not receipt:
@@ -427,36 +481,21 @@ def super_admin_handle_receipt():
     try:
         receipt.status = action
         receipt.reviewed_at = datetime.now(timezone.utc)
-        
-        # إذا تمت الموافقة، قم تلقائياً بتفعيل المتجر وتمديد فترة انتهاء صلاحية الاشتراك بـ 30 يوماً إضافية!
+
         if action == "approved":
             tenant = Tenant.query.get(receipt.tenant_id)
             tenant.subscription_status = "active"
-            # إضافة شهر إضافي للاشتراك
             if tenant.expires_at:
                 tenant.expires_at += timedelta(days=30)
             else:
                 tenant.expires_at = datetime.now(timezone.utc) + timedelta(days=30)
-                
+
         db.session.commit()
         return jsonify({"status": "success", "message": f"Receipt marked as {action}"})
     except Exception as e:
         db.session.rollback()
         return jsonify({"status": "error", "message": str(e)}), 500
 
-
-# ------------------------------------------
-# ك) تحديث مسار الـ Super Admin Dashboard ليعرض المتاجر والطلبات المعلقة معاً
-# ------------------------------------------
-@app.route('/super-admin/dashboard')
-def super_admin_dashboard_updated():
-    tenants = Tenant.query.all()
-    receipts = SubscriptionReceipt.query.filter_by(status="pending").all()
-    return render_template('super_admin.html', tenants=tenants, receipts=receipts)
-
-@app.route('/register')
-def register_page():
-    return render_template('register.html')
 
 if __name__ == '__main__':
     app.run(debug=True)

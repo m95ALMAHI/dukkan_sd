@@ -3,45 +3,114 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ابدأ متجرك الإلكتروني الآن | DukkanSD</title>
+    <title>إنشاء متجر جديد | DukkanSD</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;750;900&display=swap" rel="stylesheet">
+    <style>body { font-family: 'Tajawal', sans-serif; }</style>
 </head>
 <body class="bg-slate-50 flex items-center justify-center min-h-screen p-6">
-    <div class="max-w-md w-full bg-white rounded-3xl p-8 border border-slate-100 shadow-xl">
-        <h2 class="text-2xl font-black text-slate-900 mb-2">أنشئ متجرك الآن 🚀</h2>
-        <p class="text-slate-500 text-sm mb-8">سجل بيانات متجرك واحصل على رابطك الخاص خلال ثوانٍ.</p>
-        
-        <form id="regForm" class="space-y-4">
-            <input type="text" id="shop_name" placeholder="اسم المتجر (مثال: متجر الكترونيات)" required class="w-full px-4 py-3 rounded-xl border border-slate-200">
-            <input type="text" id="subdomain" placeholder="الرابط المخصص (مثال: my-store)" required class="w-full px-4 py-3 rounded-xl border border-slate-200">
-            <input type="email" id="email" placeholder="بريدك الإلكتروني" required class="w-full px-4 py-3 rounded-xl border border-slate-200">
-            <input type="password" id="password" placeholder="كلمة المرور" required class="w-full px-4 py-3 rounded-xl border border-slate-200">
-            <button type="submit" class="w-full bg-emerald-600 text-white font-bold py-4 rounded-xl hover:bg-emerald-700 transition">إنشاء المتجر الآن</button>
+
+    <div class="max-w-xl w-full bg-white rounded-3xl p-8 border border-slate-100 shadow-xl space-y-6">
+        <div class="text-center">
+            <span class="text-3xl font-black text-slate-950">Dukkan<span class="text-emerald-600">SD</span></span>
+            <h2 class="text-xl font-bold text-slate-900 mt-3">انضم إلينا وابدأ البيع الإلكتروني اليوم! 🚀</h2>
+            <p class="text-slate-400 text-xs mt-1">أنشئ متجرك المخصص واقبل طلبات عملائك عبر الواتساب مباشرة.</p>
+        </div>
+
+        {% if error %}
+        <div class="bg-rose-50 text-rose-650 p-4 rounded-xl text-xs font-bold border border-rose-100">
+            ⚠️ {{ error }}
+        </div>
+        {% endif %}
+
+        <form action="/api/v1/register" method="POST" class="space-y-4">
+            
+            <!-- تفاصيل المتجر -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 mb-1">اسم المتجر</label>
+                    <input type="text" name="shop_name" placeholder="مثال: دكان البركة" required class="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm focus:outline-emerald-500">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 mb-1">رابط المتجر (Subdomain)</label>
+                    <div class="flex">
+                        <span class="bg-slate-100 border border-r-0 border-slate-200 text-slate-400 px-3 py-3 rounded-r-xl text-xs flex items-center">.dukkan-sd.com</span>
+                        <input type="text" name="subdomain" placeholder="albaraka" required class="w-full px-4 py-3 rounded-l-xl border border-slate-200 text-sm focus:outline-emerald-500 text-left" dir="ltr">
+                    </div>
+                </div>
+            </div>
+
+            <!-- تفاصيل المسؤول والمبيعات -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 mb-1">اسم التاجر (المسؤول)</label>
+                    <input type="text" name="admin_username" placeholder="اسمك الكامل" required class="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm focus:outline-emerald-500">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 mb-1">رقم مبيعات الواتساب</label>
+                    <input type="text" name="whatsapp_number" placeholder="2499XXXXXXXX" required class="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm focus:outline-emerald-500 text-left" dir="ltr">
+                </div>
+            </div>
+
+            <!-- البريد وكلمة السر مع ميزة الإظهار -->
+            <div>
+                <label class="block text-xs font-bold text-slate-500 mb-1">البريد الإلكتروني</label>
+                <input type="email" name="admin_email" placeholder="yourmail@example.com" required class="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm focus:outline-emerald-500">
+            </div>
+
+            <div>
+                <label class="block text-xs font-bold text-slate-500 mb-1">كلمة المرور</label>
+                <div class="relative">
+                    <input id="passwordInput" type="password" name="admin_password" placeholder="أدخل كلمة مرور قوية" required class="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm focus:outline-emerald-500">
+                    <button type="button" onclick="togglePasswordVisibility()" class="absolute inset-y-0 left-4 text-xs font-bold text-slate-400 hover:text-emerald-600 transition">
+                        👁️ <span id="toggleText">إظهار</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- اختيار خطة الاشتراك السحابي -->
+            <div>
+                <label class="block text-xs font-bold text-slate-500 mb-2">اختر خطة الاشتراك السحابي 💎</label>
+                <div class="grid grid-cols-3 gap-3">
+                    <label class="border border-slate-200 rounded-xl p-3 flex flex-col items-center justify-center cursor-pointer hover:border-emerald-500 transition [&:has(input:checked)]:border-emerald-500 [&:has(input:checked)]:bg-emerald-50/50">
+                        <input type="radio" name="plan" value="trial" checked class="sr-only">
+                        <span class="text-xs font-black">تجريبية</span>
+                        <span class="text-[10px] text-slate-400">14 يوم مجاناً</span>
+                    </label>
+                    <label class="border border-slate-200 rounded-xl p-3 flex flex-col items-center justify-center cursor-pointer hover:border-emerald-500 transition [&:has(input:checked)]:border-emerald-500 [&:has(input:checked)]:bg-emerald-50/50">
+                        <input type="radio" name="plan" value="basic" class="sr-only">
+                        <span class="text-xs font-black">الأساسية</span>
+                        <span class="text-[10px] text-slate-400">10,000 د.س</span>
+                    </label>
+                    <label class="border border-slate-200 rounded-xl p-3 flex flex-col items-center justify-center cursor-pointer hover:border-emerald-500 transition [&:has(input:checked)]:border-emerald-500 [&:has(input:checked)]:bg-emerald-50/50">
+                        <input type="radio" name="plan" value="premium" class="sr-only">
+                        <span class="text-xs font-black">الذهبية⭐</span>
+                        <span class="text-[10px] text-slate-400">20,000 د.س</span>
+                    </label>
+                </div>
+            </div>
+
+            <button type="submit" class="w-full bg-emerald-650 hover:bg-emerald-700 text-white font-bold py-3.5 rounded-xl text-xs transition shadow-lg shadow-emerald-600/10">إنشاء متجري والدخول للوحة التحكم 🚀</button>
         </form>
+
+        <div class="text-center text-xs text-slate-400">
+            لديك حساب بالفعل؟ <a href="/login" class="text-emerald-600 font-bold hover:underline">سجل دخولك من هنا</a>
+        </div>
     </div>
 
+    <!-- جافاسكريبت لإظهار/إخفاء كلمة المرور -->
     <script>
-        document.getElementById('regForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const data = {
-                shop_name: document.getElementById('shop_name').value,
-                subdomain: document.getElementById('subdomain').value,
-                admin_email: document.getElementById('email').value,
-                admin_password: document.getElementById('password').value,
-                admin_username: 'Merchant'
-            };
-            const res = await fetch('/api/v1/register', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify(data)
-            });
-            if(res.ok) {
-                alert('تم إنشاء متجرك بنجاح! سيتم تحويلك للوحة التحكم.');
-                window.location.href = '/admin/dashboard';
+        function togglePasswordVisibility() {
+            const passwordInput = document.getElementById('passwordInput');
+            const toggleText = document.getElementById('toggleText');
+            if (passwordInput.type === 'password') {
+                passwordInput.type = 'text';
+                toggleText.innerText = 'إخفاء';
             } else {
-                alert('فشل التسجيل. ربما الرابط مستخدم مسبقاً.');
+                passwordInput.type = 'password';
+                toggleText.innerText = 'إظهار';
             }
-        });
+        }
     </script>
 </body>
 </html>
