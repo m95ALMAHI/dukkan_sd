@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ابدأ متجرك الإلكتروني الآن | DukkanSD</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-50 flex items-center justify-center min-h-screen p-6">
+    <div class="max-w-md w-full bg-white rounded-3xl p-8 border border-slate-100 shadow-xl">
+        <h2 class="text-2xl font-black text-slate-900 mb-2">أنشئ متجرك الآن 🚀</h2>
+        <p class="text-slate-500 text-sm mb-8">سجل بيانات متجرك واحصل على رابطك الخاص خلال ثوانٍ.</p>
+        
+        <form id="regForm" class="space-y-4">
+            <input type="text" id="shop_name" placeholder="اسم المتجر (مثال: متجر الكترونيات)" required class="w-full px-4 py-3 rounded-xl border border-slate-200">
+            <input type="text" id="subdomain" placeholder="الرابط المخصص (مثال: my-store)" required class="w-full px-4 py-3 rounded-xl border border-slate-200">
+            <input type="email" id="email" placeholder="بريدك الإلكتروني" required class="w-full px-4 py-3 rounded-xl border border-slate-200">
+            <input type="password" id="password" placeholder="كلمة المرور" required class="w-full px-4 py-3 rounded-xl border border-slate-200">
+            <button type="submit" class="w-full bg-emerald-600 text-white font-bold py-4 rounded-xl hover:bg-emerald-700 transition">إنشاء المتجر الآن</button>
+        </form>
+    </div>
+
+    <script>
+        document.getElementById('regForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const data = {
+                shop_name: document.getElementById('shop_name').value,
+                subdomain: document.getElementById('subdomain').value,
+                admin_email: document.getElementById('email').value,
+                admin_password: document.getElementById('password').value,
+                admin_username: 'Merchant'
+            };
+            const res = await fetch('/api/v1/register', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(data)
+            });
+            if(res.ok) {
+                alert('تم إنشاء متجرك بنجاح! سيتم تحويلك للوحة التحكم.');
+                window.location.href = '/admin/dashboard';
+            } else {
+                alert('فشل التسجيل. ربما الرابط مستخدم مسبقاً.');
+            }
+        });
+    </script>
+</body>
+</html>

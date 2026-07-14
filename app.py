@@ -388,5 +388,71 @@ def super_admin_update_tenant():
         db.session.rollback()
         return jsonify({"status": "error", "message": str(e)}), 500
 
+
+# ------------------------------------------
+# ط) منفذ إرسال إيصال الدفع من التاجر (Merchant billing submit)
+# ------------------------------------------
+@app.route('/api/v1/submit-receipt', methods=['POST'])
+def submit_receipt():
+    data = request.get_json() or {}
+    try:
+        new_receipt = SubscriptionReceipt(
+            tenant_id=int(data['tenant_id']),
+            amount_paid=float(data['amount']),
+            transaction_ref=data['ref'],
+            receipt_image=data.get('image'),
+            status="pending"
+        )
+        db.session.add(new_receipt)
+        db.session.commit()
+        return jsonify({"status": "success", "message": "Receipt submitted successfully."}), 201
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+
+# ------------------------------------------
+# ي) منفذ المشرف العام لمعالجة إيصالات المتاجر (Approve/Reject Receipts)
+# ------------------------------------------
+@app.route('/api/v1/super-admin/handle-receipt', methods=['POST'])
+def super_admin_handle_receipt():
+    data = request.get_json() or {}
+    receipt_id = data.get('receipt_id')
+    action = data.get('action') # approved أو rejected
+
+    receipt = SubscriptionReceipt.query.get(int(receipt_id))
+    if not receipt:
+        return jsonify({"status": "error", "message": "Receipt not found"}), 404
+
+    try:
+        receipt.status = action
+        receipt.reviewed_at = datetime.now(timezone.utc)
+        
+        # إذا تمت الموافقة، قم تلقائياً بتفعيل المتجر وتمديد فترة انتهاء صلاحية الاشتراك بـ 30 يوماً إضافية!
+        if action == "approved":
+            tenant = Tenant.query.get(receipt.tenant_id)
+            tenant.subscription_status = "active"
+            # إضافة شهر إضافي للاشتراك
+            if tenant.expires_at:
+                tenant.expires_at += timedelta(days=30)
+            else:
+                tenant.expires_at = datetime.now(timezone.utc) + timedelta(days=30)
+                
+        db.session.commit()
+        return jsonify({"status": "success", "message": f"Receipt marked as {action}"})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+
+# ------------------------------------------
+# ك) تحديث مسار الـ Super Admin Dashboard ليعرض المتاجر والطلبات المعلقة معاً
+# ------------------------------------------
+@app.route('/super-admin/dashboard')
+def super_admin_dashboard_updated():
+    tenants = Tenant.query.all()
+    receipts = SubscriptionReceipt.query.filter_by(status="pending").all()
+    return render_template('super_admin.html', tenants=tenants, receipts=receipts)
+
 if __name__ == '__main__':
     app.run(debug=True)
