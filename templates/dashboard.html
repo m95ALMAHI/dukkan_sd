@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>لوحة التحكم الإدارية | دكان</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Tajawal', sans-serif; }
+    </style>
+</head>
+<body class="bg-[#f8fafc] text-slate-800">
+
+    <div class="min-h-screen flex flex-col md:flex-row">
+        <aside class="w-full md:w-64 bg-slate-900 text-white p-6 flex flex-col justify-between">
+            <div>
+                <div class="text-xl font-extrabold tracking-tight mb-8">DukkanSD <span class="text-xs text-emerald-400">SaaS</span></div>
+                <nav class="space-y-2">
+                    <a href="#" class="flex items-center gap-3 px-4 py-3 rounded-xl bg-slate-800 text-white font-medium text-sm transition">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10.5 6a7.5 7.5 0 1 0 7.5 7.5h-7.5V6Z"/><path stroke-linecap="round" stroke-linejoin="round" d="M13.5 10.5H21A7.5 7.5 0 0 0 13.5 3v7.5Z"/></svg>
+                        لوحة الإحصائيات
+                    </a>
+                    <a href="#" class="flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-slate-800 text-slate-400 hover:text-white font-medium text-sm transition">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M20.25 7.5l-.625 10.632a2.25 2.25 0 0 1-2.247 2.118H6.622a2.25 2.25 0 0 1-2.247-2.118L3.75 7.5M10 11.25h4M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125z"/></svg>
+                        المنتجات والطلبات
+                    </a>
+                </nav>
+            </div>
+            <div class="text-xs text-slate-500 border-t border-slate-800 pt-4">متصل كـ: {{ tenant_name }}</div>
+        </aside>
+
+        <main class="flex-1 p-6 md:p-10">
+            <header class="flex items-center justify-between mb-10">
+                <div>
+                    <h1 class="text-2xl md:text-3xl font-extrabold text-slate-900">مرحباً بك مجدداً</h1>
+                    <p class="text-slate-500 text-xs mt-1">تتبع نمو متجرك الإلكتروني وإدارته بلحظة بلحظة</p>
+                </div>
+                <a href="/store/{{ subdomain }}" target="_blank" class="bg-white border border-slate-200 hover:border-slate-350 px-4 py-2 rounded-xl text-xs font-semibold text-slate-700 transition flex items-center gap-2">
+                    عرض المتجر للعامة
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25"/></svg>
+                </a>
+            </header>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
+                <div class="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
+                    <span class="text-slate-400 text-xs font-medium">إجمالي المنتجات المتاحة</span>
+                    <div class="text-2xl font-bold text-slate-900 mt-2">{{ products|length }} منتج</div>
+                </div>
+                <div class="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
+                    <span class="text-slate-400 text-xs font-medium">إجمالي المبيعات الافتراضي</span>
+                    <div class="text-2xl font-bold text-emerald-650 mt-2">0.00 SDG</div>
+                </div>
+                <div class="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
+                    <span class="text-slate-400 text-xs font-medium">حالة التزامن السحابي</span>
+                    <div class="text-2xl font-bold text-indigo-600 mt-2 flex items-center gap-2">
+                        <span class="w-2.5 h-2.5 bg-emerald-500 rounded-full animate-pulse"></span>
+                        نشط ومؤمن
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+                <div class="p-6 border-b border-slate-50 flex items-center justify-between">
+                    <h3 class="font-bold text-slate-900 text-base">قائمة المنتجات الحالية في المستودع</h3>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-right text-sm">
+                        <thead class="bg-slate-50 text-slate-500 uppercase text-xs">
+                            <tr>
+                                <th class="px-6 py-4">اسم المنتج الإلكتروني</th>
+                                <th class="px-6 py-4">السعر الفردي</th>
+                                <th class="px-6 py-4">المخزون المتاح</th>
+                                <th class="px-6 py-4">الحالة</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-100">
+                            {% for product in products %}
+                            <tr class="hover:bg-slate-50/85 transition">
+                                <td class="px-6 py-4 font-bold text-slate-900">{{ product.name }}</td>
+                                <td class="px-6 py-4 font-semibold">{{ "{:,.2f}".format(product.price) }} SDG</td>
+                                <td class="px-6 py-4 text-slate-500">{{ product.stock }} وحدة</td>
+                                <td class="px-6 py-4">
+                                    <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700">معروض</span>
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="4" class="px-6 py-12 text-center text-slate-400">لا توجد منتجات لعرضها. يرجى إضافة منتجات جديدة عبر الـ API.</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </main>
+    </div>
+
+</body>
+</html>

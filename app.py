@@ -5,6 +5,7 @@ from datetime import datetime, timedelta, timezone
 from functools import wraps
 from flask import Flask, jsonify, request
 from flask_sqlalchemy import SQLAlchemy
+from flask import render_template
 from sqlalchemy.sql import func
 from werkzeug.security import generate_password_hash, check_password_hash
 
@@ -290,6 +291,39 @@ def handle_products(current_user):
         "products": [p.to_dict() for p in products]
     })
 
+
+# ------------------------------------------
+# د) مسار استعراض متجر العميل ديناميكياً (E-Commerce Storefront)
+# ------------------------------------------
+@app.route('/store/<subdomain>')
+def view_store(subdomain):
+    # البحث عن المتجر عبر النطاق الفرعي
+    tenant = Tenant.query.filter_by(subdomain=subdomain.lower()).first()
+    if not tenant or not tenant.is_active:
+        return jsonify({"status": "error", "message": "Store not found"}), 404
+    
+    # جلب منتجات هذا المتجر الحصري فقط
+    products = Product.query.filter_by(tenant_id=tenant.id).all()
+    
+    return render_template('store.html', tenant=tenant, products=products)
+
+
+# ------------------------------------------
+# هـ) مسار استعراض لوحة التحكم الافتراضية للتاجر الأول (Admin Dashboard)
+# ------------------------------------------
+@app.route('/admin/dashboard')
+def admin_dashboard():
+    # كنموذج أولي احترافي، سنقوم بعرض لوحة تحكم التاجر الأول تلقائياً
+    tenant = Tenant.query.first()
+    if not tenant:
+        return jsonify({"status": "error", "message": "No merchants registered yet"}), 404
+        
+    products = Product.query.filter_by(tenant_id=tenant.id).all()
+    
+    return render_template('dashboard.html', 
+                           tenant_name=tenant.name, 
+                           subdomain=tenant.subdomain, 
+                           products=products)
 
 if __name__ == '__main__':
     app.run(debug=True)
