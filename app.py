@@ -454,5 +454,9 @@ def super_admin_dashboard_updated():
     receipts = SubscriptionReceipt.query.filter_by(status="pending").all()
     return render_template('super_admin.html', tenants=tenants, receipts=receipts)
 
+@app.route('/register')
+def register_page():
+    return render_template('register.html')
+
 if __name__ == '__main__':
     app.run(debug=True)
