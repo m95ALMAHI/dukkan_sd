@@ -1,6 +1,8 @@
 import os
 import ssl
-from datetime import datetime
+import jwt
+from datetime import datetime, timedelta, timezone
+from functools import wraps
 from flask import Flask, jsonify, request
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.sql import func
@@ -9,10 +11,12 @@ from werkzeug.security import generate_password_hash, check_password_hash
 app = Flask(__name__)
 
 # ==========================================
-# 1. إعدادات قاعدة البيانات والاتصال السحابي
+# 1. الإعدادات ومفتاح التشفير السري
 # ==========================================
-raw_db_url = os.environ.get('DATABASE_URL')
+# في البيئة الإنتاجية نستخدم متغير بيئي، ومحلياً نستخدم نصاً عشوائياً كاحتياط
+app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'SuperSecretDukkanSDKey2026')
 
+raw_db_url = os.environ.get('DATABASE_URL')
 if raw_db_url:
     if raw_db_url.startswith("postgres://"):
         database_url = raw_db_url.replace("postgres://", "postgresql+pg8000://", 1)
@@ -117,60 +121,74 @@ class Product(db.Model):
 
 
 # ==========================================
-# 3. مخرجات الـ API ومنافذ التحكم (SaaS REST Endpoints)
+# 3. مزخرف الحماية والتأكد من التوكن (JWT Decorator)
+# ==========================================
+def token_required(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        token = None
+        # جلب التوكن من الهيدر (Authorization: Bearer <TOKEN>)
+        if 'Authorization' in request.headers:
+            auth_header = request.headers['Authorization']
+            if auth_header.startswith("Bearer "):
+                token = auth_header.split(" ")[1]
+
+        if not token:
+            return jsonify({"status": "error", "message": "Access token is missing!"}), 401
+
+        try:
+            # فك تشفير التوكن والتحقق من صلاحيته
+            data = jwt.decode(token, app.config['SECRET_KEY'], algorithms=["HS256"])
+            current_user = User.query.filter_by(id=data['user_id']).first()
+            if not current_user or not current_user.is_active:
+                raise Exception("User not found or suspended")
+        except jwt.ExpiredSignatureError:
+            return jsonify({"status": "error", "message": "Token has expired!"}), 401
+        except Exception as e:
+            return jsonify({"status": "error", "message": "Token is invalid!", "detail": str(e)}), 401
+
+        # تمرير بيانات المستخدم والتاجر الحاليين إلى المسار المحمي تلقائياً
+        return f(current_user, *args, **kwargs)
+    return decorated
+
+
+# ==========================================
+# 4. منافذ التحكم والـ APIs
 # ==========================================
 
 @app.route('/')
 def index():
     return jsonify({
         "status": "success",
-        "message": "Welcome to DukkanSD Multi-tenant RESTful API Engine.",
-        "version": "1.0.0 (Production)"
+        "message": "Welcome to DukkanSD Multi-tenant JWT Secured API Engine.",
+        "version": "1.1.0"
     })
 
 
-@app.route('/db-test')
-def db_test():
-    try:
-        db.create_all()
-        return jsonify({
-            "database_status": "Connected & Synchronized Successfully!",
-            "architecture": "Multi-tenant Shared-Schema Engine Core",
-            "synchronized_tables": ["tenants", "users", "products"]
-        })
-    except Exception as e:
-        return jsonify({"database_status": "Failed to sync", "error": str(e)}), 500
-
-
 # ------------------------------------------
-# أ) منفذ تسجيل تاجر جديد (Create Tenant + Admin User)
+# أ) منفذ تسجيل تاجر جديد (مفتوح للعامة)
 # ------------------------------------------
 @app.route('/api/v1/register', methods=['POST'])
 def register_tenant():
     data = request.get_json() or {}
-    
-    # التحقق من المدخلات الأساسية بصفتنا خبراء
     required_fields = ['shop_name', 'subdomain', 'admin_username', 'admin_email', 'admin_password']
     missing_fields = [field for field in required_fields if field not in data]
     if missing_fields:
         return jsonify({"status": "error", "message": f"Missing required fields: {missing_fields}"}), 400
 
-    # التحقق من عدم تكرار النطاق الفرعي أو البريد الإلكتروني
     if Tenant.query.filter_by(subdomain=data['subdomain'].lower()).first():
         return jsonify({"status": "error", "message": "Subdomain is already registered"}), 400
     if User.query.filter_by(email=data['admin_email'].lower()).first():
         return jsonify({"status": "error", "message": "Email is already registered"}), 400
 
     try:
-        # البدء في إنشاء البيانات داخل معاملة ذرية واحدة (Database Transaction)
         new_tenant = Tenant(
             name=data['shop_name'],
             subdomain=data['subdomain'].lower()
         )
         db.session.add(new_tenant)
-        db.session.flush() # توليد ID التاجر مؤقتاً لربطه بالمستخدم دون حفظ نهائي في هذه اللحظة
+        db.session.flush()
 
-        # إنشاء مستخدم الإدارة وتشفير كلمة مروره بطريقة احترافية وآمنة
         hashed_password = generate_password_hash(data['admin_password'])
         new_admin = User(
             tenant_id=new_tenant.id,
@@ -180,8 +198,6 @@ def register_tenant():
             role="admin"
         )
         db.session.add(new_admin)
-        
-        # حفظ كل التغييرات دفعة واحدة
         db.session.commit()
 
         return jsonify({
@@ -192,26 +208,58 @@ def register_tenant():
         }), 201
 
     except Exception as e:
-        db.session.rollback() # التراجع التام في حال حدوث أي مشكلة شبكية أو برمجية
+        db.session.rollback()
         return jsonify({"status": "error", "message": "Transaction failed", "detail": str(e)}), 500
 
 
 # ------------------------------------------
-# ب) إدارة المنتجات مع العزل التام للمستأجرين (Scoped Product Management)
+# ب) منفذ تسجيل الدخول وتوليد التوكن (Login & Issue Token)
+# ------------------------------------------
+@app.route('/api/v1/login', methods=['POST'])
+def login():
+    data = request.get_json() or {}
+    if 'email' not in data or 'password' not in data:
+        return jsonify({"status": "error", "message": "Email and password are required"}), 400
+
+    user = User.query.filter_by(email=data['email'].lower()).first()
+    
+    if not user or not check_password_hash(user.password_hash, data['password']):
+        return jsonify({"status": "error", "message": "Invalid email or password"}), 401
+
+    if not user.is_active or not user.tenant.is_active:
+        return jsonify({"status": "error", "message": "Your account or shop is suspended"}), 403
+
+    # توليد توكن ينتهي بعد 24 ساعة
+    token_payload = {
+        "user_id": user.id,
+        "tenant_id": user.tenant_id,
+        "role": user.role,
+        "exp": datetime.now(timezone.utc) + timedelta(hours=24)
+    }
+    
+    token = jwt.encode(token_payload, app.config['SECRET_KEY'], algorithm="HS256")
+
+    return jsonify({
+        "status": "success",
+        "message": "Authentication successful",
+        "token": token,
+        "shop_name": user.tenant.name,
+        "subdomain": user.tenant.subdomain
+    })
+
+
+# ------------------------------------------
+# ج) إدارة المنتجات مع العزل التام ومصادقة الـ JWT (Secured Products Route)
 # ------------------------------------------
 @app.route('/api/v1/products', methods=['GET', 'POST'])
-def handle_products():
-    # استخراج معرف المتجر من رأس الطلب لتطبيق العزل البرمجي
-    tenant_id = request.headers.get('X-Tenant-ID')
-    if not tenant_id:
-        return jsonify({"status": "error", "message": "Missing 'X-Tenant-ID' header for scoping requests"}), 401
-    
-    # التحقق من وجود المتجر ونشاطه
-    tenant = Tenant.query.get(tenant_id)
+@token_required
+def handle_products(current_user):
+    # جلب المتجر المربوط مباشرة بالتوكن لضمان الحماية المطلقة وعدم إمكانية التزوير
+    tenant = Tenant.query.get(current_user.tenant_id)
     if not tenant or not tenant.is_active:
-        return jsonify({"status": "error", "message": "Tenant not found or inactive"}), 404
+        return jsonify({"status": "error", "message": "Tenant account associated with token is inactive"}), 403
 
-    # 1. إضافة منتج جديد خاص بالمتجر المحدد فقط
+    # 1. إضافة منتج جديد (محمية ومربوطة تلقائياً بمتجر صاحب التوكن)
     if request.method == 'POST':
         data = request.get_json() or {}
         if 'name' not in data or 'price' not in data:
@@ -233,7 +281,7 @@ def handle_products():
             db.session.rollback()
             return jsonify({"status": "error", "message": str(e)}), 500
 
-    # 2. جلب منتجات المتجر المحدد فقط (معزولة تماماً عن بقية التجار)
+    # 2. جلب منتجات هذا المتجر فقط
     products = Product.query.filter_by(tenant_id=tenant.id).all()
     return jsonify({
         "status": "success",
