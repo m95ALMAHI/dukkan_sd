@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>بوابة الإدارة العليا | DukkanSD SaaS</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;550;700;800&display=swap" rel="stylesheet">
+    <style>body { font-family: 'Tajawal', sans-serif; }</style>
+</head>
+<body class="bg-[#f8fafc] text-slate-800">
+
+    <div class="min-h-screen flex flex-col">
+        <header class="bg-slate-900 text-white shadow-md">
+            <div class="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                    <span class="text-2xl font-black tracking-wider text-emerald-400">DukkanSD</span>
+                    <span class="bg-emerald-500/10 text-emerald-400 text-[10px] font-bold px-2.5 py-1 rounded-full uppercase">Super Admin Portal</span>
+                </div>
+                <div class="flex items-center gap-4">
+                    <span class="text-xs text-slate-400">مرحباً بك، المدير العام 👑</span>
+                    <a href="/" class="text-xs bg-slate-800 hover:bg-slate-700 px-4 py-2 rounded-xl transition">الرئيسية</a>
+                </div>
+            </div>
+        </header>
+
+        <main class="flex-1 max-w-7xl mx-auto w-full px-6 py-10">
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-10">
+                <div class="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
+                    <span class="text-slate-400 text-xs font-semibold">إجمالي المتاجر المسجلة</span>
+                    <div class="text-3xl font-extrabold text-slate-900 mt-2">{{ tenants|length }} متجر</div>
+                </div>
+                <div class="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
+                    <span class="text-slate-400 text-xs font-semibold">المتاجر النشطة حالياً</span>
+                    <div class="text-3xl font-extrabold text-emerald-650 mt-2">
+                        {{ tenants|selectattr('subscription_status', 'equalto', 'active')|list|length }} نشط
+                    </div>
+                </div>
+                <div class="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
+                    <span class="text-slate-400 text-xs font-semibold">المتاجر المعلقة</span>
+                    <div class="text-3xl font-extrabold text-rose-600 mt-2">
+                        {{ tenants|selectattr('subscription_status', 'equalto', 'suspended')|list|length }} معلق
+                    </div>
+                </div>
+                <div class="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
+                    <span class="text-slate-400 text-xs font-semibold">إجمالي الأرباح الافتراضية</span>
+                    <div class="text-3xl font-extrabold text-indigo-650 mt-2">0.00 SDG</div>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-3xl border border-slate-150 shadow-sm overflow-hidden">
+                <div class="p-6 border-b border-slate-50 flex items-center justify-between">
+                    <h3 class="font-bold text-slate-900 text-lg">قائمة المشتركين والتحكم بالاشتراكات</h3>
+                    <span class="text-xs text-slate-400">تحديث فوري لبيانات المتاجر سحابياً</span>
+                </div>
+                
+                <div class="overflow-x-auto">
+                    <table class="w-full text-right text-sm">
+                        <thead class="bg-slate-50 text-slate-500 text-xs font-semibold">
+                            <tr>
+                                <th class="px-6 py-4">اسم المتجر / الرابط</th>
+                                <th class="px-6 py-4">رقم الواتساب</th>
+                                <th class="px-6 py-4">نوع الباقة</th>
+                                <th class="px-6 py-4">تاريخ الانتهاء</th>
+                                <th class="px-6 py-4">حالة الاشتراك</th>
+                                <th class="px-6 py-4 text-center">الإجراءات والتحكم</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-100">
+                            {% for tenant in tenants %}
+                            <tr class="hover:bg-slate-50/50 transition">
+                                <td class="px-6 py-4">
+                                    <div class="font-bold text-slate-900 text-sm">{{ tenant.name }}</div>
+                                    <a href="/store/{{ tenant.subdomain }}" target="_blank" class="text-xs text-emerald-600 hover:underline">/store/{{ tenant.subdomain }} 🔗</a>
+                                </td>
+                                <td class="px-6 py-4 font-mono text-xs">{{ tenant.whatsapp_number or 'لا يوجد' }}</td>
+                                <td class="px-6 py-4">
+                                    <span class="px-2.5 py-1 rounded-full text-xs font-bold {% if tenant.plan == 'premium' %}bg-indigo-50 text-indigo-700{% elif tenant.plan == 'basic' %}bg-sky-50 text-sky-700{% else %}bg-amber-50 text-amber-700{% endif %}">
+                                        {{ tenant.plan|upper }}
+                                    </span>
+                                </td>
+                                <td class="px-6 py-4 text-xs text-slate-500">
+                                    {{ tenant.expires_at.strftime('%Y-%m-%d') if tenant.expires_at else 'غير محدد' }}
+                                </td>
+                                <td class="px-6 py-4">
+                                    <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold {% if tenant.subscription_status == 'active' %}bg-emerald-50 text-emerald-700{% else %}bg-rose-50 text-rose-700{% endif %}">
+                                        <span class="w-1.5 h-1.5 rounded-full {% if tenant.subscription_status == 'active' %}bg-emerald-500{% else %}bg-rose-500{% endif %}"></span>
+                                        {{ 'نشط' if tenant.subscription_status == 'active' else 'معلق' }}
+                                    </span>
+                                </td>
+                                <td class="px-6 py-4 text-center">
+                                    <div class="flex items-center justify-center gap-2">
+                                        <button onclick="toggleSubscription('{{ tenant.id }}', 'active')" class="bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-bold px-3 py-1.5 rounded-lg transition">تفعيل ✅</button>
+                                        <button onclick="toggleSubscription('{{ tenant.id }}', 'suspended')" class="bg-rose-650 hover:bg-rose-750 text-white text-[11px] font-bold px-3 py-1.5 rounded-lg transition">إيقاف 🛑</button>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="6" class="px-6 py-12 text-center text-slate-400">لا يوجد أي عملاء مسجلين حالياً على النظام.</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        async function toggleSubscription(tenantId, newStatus) {
+            if(!confirm(`هل أنت متأكد من تغيير حالة اشتراك المتجر إلى ${newStatus == 'active' ? 'نشط' : 'معلق'}؟`)) return;
+
+            try {
+                const response = await fetch(`/api/v1/super-admin/update-tenant`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ tenant_id: tenantId, status: newStatus })
+                });
+
+                const resData = await response.json();
+                if (response.ok) {
+                    alert('تم تحديث حالة اشتراك المتجر بنجاح سحابياً!');
+                    window.location.reload();
+                } else {
+                    alert('فشل التعديل: ' + resData.message);
+                }
+            } catch (error) {
+                alert('خطأ في الاتصال بالخادم.');
+            }
+        }
+    </script>
+</body>
+</html>

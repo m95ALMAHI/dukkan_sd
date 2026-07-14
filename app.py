@@ -354,6 +354,39 @@ def admin_dashboard():
                            subdomain=tenant.subdomain, 
                            products=products)
 
+# ------------------------------------------
+# ز) مسار لوحة الإدارة العليا (Super Admin Panel Route)
+# ------------------------------------------
+@app.route('/super-admin/dashboard')
+def super_admin_dashboard():
+    # في مرحلة التطوير السريع، سنعرض الواجهة مباشرة لمراقبة المتاجر
+    tenants = Tenant.query.all()
+    return render_template('super_admin.html', tenants=tenants)
+
+
+# ------------------------------------------
+# ح) منفذ تعديل حالة المتجر سحابياً (SaaS API Control)
+# ------------------------------------------
+@app.route('/api/v1/super-admin/update-tenant', methods=['POST'])
+def super_admin_update_tenant():
+    data = request.get_json() or {}
+    tenant_id = data.get('tenant_id')
+    new_status = data.get('status') # active أو suspended
+
+    if not tenant_id or not new_status:
+        return jsonify({"status": "error", "message": "Missing required fields"}), 400
+
+    tenant = Tenant.query.get(int(tenant_id))
+    if not tenant:
+        return jsonify({"status": "error", "message": "Tenant not found"}), 404
+
+    try:
+        tenant.subscription_status = new_status
+        db.session.commit()
+        return jsonify({"status": "success", "message": f"Tenant status changed to {new_status}"})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"status": "error", "message": str(e)}), 500
 
 if __name__ == '__main__':
     app.run(debug=True)
