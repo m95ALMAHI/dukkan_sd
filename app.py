@@ -256,6 +256,7 @@ def login_page():
     return render_template('login.html')
 
 
+# تم الاحتفاظ بمسار admin_dashboard هنا مع تطبيق إصلاح التحويل إلى dict لحل مشكلة الـ JSON
 @app.route('/admin/dashboard')
 def admin_dashboard():
     user_id = session.get('user_id')
@@ -268,7 +269,10 @@ def admin_dashboard():
     if not tenant or tenant.subscription_status != "active":
         return redirect(url_for('login_page'))
 
-    products = Product.query.filter_by(tenant_id=tenant.id).all()
+    # جلب المنتجات وتحويلها فوراً إلى dicts متوافقة تماماً مع JSON لمنع انهيار Jinja2
+    raw_products = Product.query.filter_by(tenant_id=tenant.id).all()
+    products = [p.to_dict() for p in raw_products]
+
     return render_template('dashboard.html', tenant=tenant, products=products)
 
 
@@ -654,24 +658,6 @@ def handle_products_api():
         "tenant_name": tenant.name,
         "products": [p.to_dict() for p in products]
     })
-
-@app.route('/admin/dashboard')
-def admin_dashboard():
-    user_id = session.get('user_id')
-    tenant_id = session.get('tenant_id')
-
-    if not user_id or not tenant_id:
-        return redirect(url_for('login_page'))
-
-    tenant = Tenant.query.get(tenant_id)
-    if not tenant or tenant.subscription_status != "active":
-        return redirect(url_for('login_page'))
-
-    # جلب المنتجات وتحويلها فوراً إلى dicts متوافقة تماماً مع JSON لمنع انهيار Jinja2
-    raw_products = Product.query.filter_by(tenant_id=tenant.id).all()
-    products = [p.to_dict() for p in raw_products]
-    
-    return render_template('dashboard.html', tenant=tenant, products=products)
 
 
 @app.route('/api/v1/super-admin/update-tenant', methods=['POST'])
