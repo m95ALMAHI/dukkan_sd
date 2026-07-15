@@ -11,7 +11,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 # استيراد دالة تأمين أسماء الملفات الضرورية لرفع الصور
 from werkzeug.utils import secure_filename
 
-app = Flask(__name__)                                          
+app = Flask(__name__)
 
 # ==========================================
 # 1. الإعدادات ومفتاح التشفير السري
@@ -291,7 +291,7 @@ def view_store(subdomain):
     return render_template('store.html', tenant=tenant, products=products)
 
 
-# --- مسار استقبال وحفظ المنتجات الفعلي لقاعدة البيانات ---
+# --- مسار إضافة منتج جديد ---
 @app.route('/add_product', methods=['POST'])
 def add_product():
     tenant_id = session.get('tenant_id')
@@ -300,12 +300,18 @@ def add_product():
         return redirect(url_for('login_page'))
 
     try:
-        # 1. استقبال البيانات النصية من الفورم
         name = request.form.get('name')
         category = request.form.get('category')
         brand = request.form.get('brand')
         price = float(request.form.get('price', 0))
         barcode = request.form.get('barcode')
+
+        # معالجة السعر قبل الخصم (العروض والخصومات)
+        compare_at_price = request.form.get('compare_at_price')
+        compare_price_val = float(compare_at_price) if compare_at_price else None
+
+        # معالجة المخزون
+        stock = int(request.form.get('stock', 1))
 
         # استقبال المواصفات بصيغة JSON String وتحويلها
         specifications_raw = request.form.get('specifications', '{}')
@@ -314,29 +320,27 @@ def add_product():
         except Exception:
             specifications = {}
 
-        # 2. معالجة وحفظ صورة المنتج في static/uploads
+        # معالجة وحفظ صورة المنتج في static/uploads
         image_path = None
         if 'image' in request.files:
             file = request.files['image']
             if file and file.filename != '' and allowed_file(file.filename):
                 filename = secure_filename(file.filename)
-                # توليد اسم فريد لحفظ الصور
                 unique_filename = f"prod_{int(datetime.now().timestamp())}_{filename}"
                 file.save(os.path.join(app.config['UPLOAD_FOLDER'], unique_filename))
-                # حفظ المسار المناسب للوصول للصورة من الويب
                 image_path = url_for('static', filename=f"uploads/{unique_filename}")
 
-        # 3. حفظ المنتج بشكل حقيقي في قاعدة البيانات
         new_product = Product(
             tenant_id=int(tenant_id),
             name=name,
             category=category,
             brand=brand,
             price=price,
+            compare_at_price=compare_price_val,
             barcode_qr=barcode,
             image_url=image_path,
             specifications=specifications,
-            stock=1,
+            stock=stock,
             is_available=True
         )
         db.session.add(new_product)
@@ -349,7 +353,103 @@ def add_product():
         print(f"خطأ أثناء حفظ المنتج: {e}")
         flash('حدث خطأ أثناء محاولة حفظ المنتج، يرجى المحاولة مجدداً.', 'danger')
 
-    # التوجيه بشكل صحيح لصفحة لوحة التحكم لإعادة تحديث البيانات
+    return redirect(url_for('admin_dashboard'))
+
+
+# --- 1. مسار تعديل المنتج (محدث ومكتمل) ---
+@app.route('/edit_product', methods=['POST'])
+def edit_product():
+    tenant_id = session.get('tenant_id')
+    if not tenant_id:
+        flash('انتهت صلاحية الجلسة، يرجى تسجيل الدخول مجدداً.', 'danger')
+        return redirect(url_for('login_page'))
+
+    product_id = request.form.get('product_id')
+    if not product_id:
+        flash('لم يتم تحديد المنتج المراد تعديله.', 'danger')
+        return redirect(url_for('admin_dashboard'))
+
+    try:
+        # التحقق الأمني من ملكية المنتج للمتجر الحالي
+        product = Product.query.filter_by(id=product_id, tenant_id=tenant_id).first_or_404()
+
+        product.name = request.form.get('name')
+        product.category = request.form.get('category')
+        product.brand = request.form.get('brand')
+        product.price = float(request.form.get('price', 0))
+        product.barcode_qr = request.form.get('barcode')
+        product.stock = int(request.form.get('stock', 1))
+
+        # معالجة السعر قبل الخصم
+        compare_at_price = request.form.get('compare_at_price')
+        product.compare_at_price = float(compare_at_price) if compare_at_price else None
+
+        # معالجة المواصفات التقنية
+        specifications_raw = request.form.get('specifications', '{}')
+        try:
+            product.specifications = json.loads(specifications_raw)
+        except Exception:
+            product.specifications = {}
+
+        # معالجة رفع صورة جديدة إذا توفرت، وإبقاء القديمة إن لم يتم اختيار ملف جديد
+        if 'image' in request.files:
+            file = request.files['image']
+            if file and file.filename != '' and allowed_file(file.filename):
+                # حذف الصورة القديمة من السيرفر لتوفير مساحة الاستضافة
+                if product.image_url:
+                    try:
+                        old_image_path = os.path.join(app.root_path, product.image_url.lstrip('/'))
+                        if os.path.exists(old_image_path):
+                            os.remove(old_image_path)
+                    except Exception as img_err:
+                        print(f"خطأ غير مؤثر أثناء محاولة حذف الصورة القديمة: {img_err}")
+
+                filename = secure_filename(file.filename)
+                unique_filename = f"prod_{int(datetime.now().timestamp())}_{filename}"
+                file.save(os.path.join(app.config['UPLOAD_FOLDER'], unique_filename))
+                product.image_url = url_for('static', filename=f"uploads/{unique_filename}")
+
+        db.session.commit()
+        flash('تمت تحديث بيانات المنتج بنجاح! ✏️🎉', 'success')
+
+    except Exception as e:
+        db.session.rollback()
+        print(f"خطأ أثناء تعديل المنتج: {e}")
+        flash('حدث خطأ أثناء محاولة تعديل المنتج، يرجى المحاولة مجدداً.', 'danger')
+
+    return redirect(url_for('admin_dashboard'))
+
+
+# --- 2. مسار حذف المنتج (محدث ومكتمل) ---
+@app.route('/delete_product/<int:product_id>')
+def delete_product(product_id):
+    tenant_id = session.get('tenant_id')
+    if not tenant_id:
+        flash('انتهت صلاحية الجلسة، يرجى تسجيل الدخول مجدداً.', 'danger')
+        return redirect(url_for('login_page'))
+
+    try:
+        # التحقق الأمني من ملكية المنتج قبل الحذف
+        product = Product.query.filter_by(id=product_id, tenant_id=tenant_id).first_or_404()
+
+        # حذف ملف الصورة المرافق من السيرفر
+        if product.image_url:
+            try:
+                image_path = os.path.join(app.root_path, product.image_url.lstrip('/'))
+                if os.path.exists(image_path):
+                    os.remove(image_path)
+            except Exception as img_err:
+                print(f"خطأ أثناء حذف صورة المنتج: {img_err}")
+
+        db.session.delete(product)
+        db.session.commit()
+        flash('تم حذف المنتج نهائياً من متجرك بنجاح! 🗑️', 'success')
+
+    except Exception as e:
+        db.session.rollback()
+        print(f"خطأ أثناء حذف المنتج: {e}")
+        flash('حدث خطأ غير متوقع أثناء محاولة حذف المنتج.', 'danger')
+
     return redirect(url_for('admin_dashboard'))
 
 
