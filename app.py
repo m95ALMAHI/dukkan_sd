@@ -4,12 +4,14 @@ import jwt
 import json
 from datetime import datetime, timedelta, timezone
 from functools import wraps
-from flask import Flask, jsonify, request, render_template, redirect, url_for, session
+from flask import Flask, jsonify, request, render_template, redirect, url_for, session, flash
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.sql import func
 from werkzeug.security import generate_password_hash, check_password_hash
+# استيراد دالة تأمين أسماء الملفات الضرورية لرفع الصور
+from werkzeug.utils import secure_filename
 
-app = Flask(__name__)
+app = Flask(__name__)                                          
 
 # ==========================================
 # 1. الإعدادات ومفتاح التشفير السري
@@ -30,6 +32,14 @@ else:
 app.config['SQLALCHEMY_DATABASE_URI'] = database_url
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
+# إعدادات رفع الملفات والصور الموحدة
+UPLOAD_FOLDER = 'static/uploads'
+ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+
+# إنشاء المجلد تلقائياً لتفادي أخطاء النظام
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+
 ssl_context = ssl.create_default_context()
 ssl_context.check_hostname = False
 ssl_context.verify_mode = ssl.CERT_NONE
@@ -40,7 +50,11 @@ app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
     }
 }
 
+# ربط قاعدة البيانات بشكل قياسي وصحيح لمنع خطأ الـ Context
 db = SQLAlchemy(app)
+
+def allowed_file(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 # ==========================================
 # 2. هيكل البيانات المطور (Multi-Tenant SaaS Schema)
@@ -53,10 +67,9 @@ class Tenant(db.Model):
     name = db.Column(db.String(100), nullable=False)
     subdomain = db.Column(db.String(50), unique=True, nullable=False, index=True)
 
-    # حقول الـ SaaS والاشتراكات
     whatsapp_number = db.Column(db.String(30), nullable=True, default="249900000000")
-    plan = db.Column(db.String(20), default="trial", nullable=False)  # trial, basic, premium
-    subscription_status = db.Column(db.String(20), default="active", nullable=False)  # active, suspended, pending
+    plan = db.Column(db.String(20), default="trial", nullable=False)
+    subscription_status = db.Column(db.String(20), default="active", nullable=False)
     expires_at = db.Column(db.DateTime(timezone=True), nullable=True)
 
     is_active = db.Column(db.Boolean, default=True, nullable=False)
@@ -89,7 +102,7 @@ class User(db.Model):
     username = db.Column(db.String(50), nullable=False)
     email = db.Column(db.String(120), unique=True, nullable=False, index=True)
     password_hash = db.Column(db.String(256), nullable=False)
-    role = db.Column(db.String(20), default="admin", nullable=False)  # super_admin, admin, staff
+    role = db.Column(db.String(20), default="admin", nullable=False)
     is_active = db.Column(db.Boolean, default=True, nullable=False)
     created_at = db.Column(db.DateTime(timezone=True), server_default=func.now())
 
@@ -166,7 +179,7 @@ class SubscriptionReceipt(db.Model):
     amount_paid = db.Column(db.Numeric(12, 2), nullable=False)
     transaction_ref = db.Column(db.String(100), nullable=False)
     receipt_image = db.Column(db.String(500), nullable=True)
-    status = db.Column(db.String(20), default="pending", nullable=False)  # pending, approved, rejected
+    status = db.Column(db.String(20), default="pending", nullable=False)
     submitted_at = db.Column(db.DateTime(timezone=True), server_default=func.now())
     reviewed_at = db.Column(db.DateTime(timezone=True), nullable=True)
 
@@ -277,72 +290,69 @@ def view_store(subdomain):
     products = Product.query.filter_by(tenant_id=tenant.id, is_available=True).order_by(Product.created_at.desc()).all()
     return render_template('store.html', tenant=tenant, products=products)
 
-UPLOAD_FOLDER = 'static/uploads'
-ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
 
-app = Flask(__name__)
-app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
-app.secret_key = 'super_secret_key_for_flash_messages' # مطلوب لرسائل التنبيه
-
-# تأكد من إنشاء مجلد حفظ الصور تلقائياً إذا لم يكن موجوداً
-os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-
-def allowed_file(filename):
-    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
-
-# --- مسار استقبال وإضافة المنتجات الجديد ---
+# --- مسار استقبال وحفظ المنتجات الفعلي لقاعدة البيانات ---
 @app.route('/add_product', methods=['POST'])
 def add_product():
+    tenant_id = session.get('tenant_id')
+    if not tenant_id:
+        flash('انتهت صلاحية الجلسة، يرجى تسجيل الدخول مجدداً.', 'danger')
+        return redirect(url_for('login_page'))
+
     try:
         # 1. استقبال البيانات النصية من الفورم
         name = request.form.get('name')
         category = request.form.get('category')
         brand = request.form.get('brand')
-        price = request.form.get('price')
+        price = float(request.form.get('price', 0))
         barcode = request.form.get('barcode')
-        
+
         # استقبال المواصفات بصيغة JSON String وتحويلها
         specifications_raw = request.form.get('specifications', '{}')
-        specifications = json.loads(specifications_raw)
+        try:
+            specifications = json.loads(specifications_raw)
+        except Exception:
+            specifications = {}
 
-        # 2. معالجة وحفظ صورة المنتج
-        image_filename = None
+        # 2. معالجة وحفظ صورة المنتج في static/uploads
+        image_path = None
         if 'image' in request.files:
             file = request.files['image']
             if file and file.filename != '' and allowed_file(file.filename):
                 filename = secure_filename(file.filename)
-                # توليد اسم فريد للصورة لمنع التكرار
-                unique_filename = f"prod_{int(os.path.getmtime(app.root_path))}_{filename}"
+                # توليد اسم فريد لحفظ الصور
+                unique_filename = f"prod_{int(datetime.now().timestamp())}_{filename}"
                 file.save(os.path.join(app.config['UPLOAD_FOLDER'], unique_filename))
-                image_filename = unique_filename
+                # حفظ المسار المناسب للوصول للصورة من الويب
+                image_path = url_for('static', filename=f"uploads/{unique_filename}")
 
-        # 3. حفظ البيانات في قاعدة البيانات الخاصة بك
-        # (قم بتعديل هذا الجزء ليتوافق مع الـ Model الخاص بك في SQLAlchemy)
-        """
+        # 3. حفظ المنتج بشكل حقيقي في قاعدة البيانات
         new_product = Product(
+            tenant_id=int(tenant_id),
             name=name,
             category=category,
             brand=brand,
-            price=float(price),
-            barcode=barcode,
-            image=image_filename,
-            specifications=specifications # إذا كان الحقل من نوع JSON في قاعدة البيانات
+            price=price,
+            barcode_qr=barcode,
+            image_url=image_path,
+            specifications=specifications,
+            stock=1,
+            is_available=True
         )
         db.session.add(new_product)
         db.session.commit()
-        """
-        
-        print(f"تم استقبال المنتج بنجاح: {name}, السعر: {price}, المواصفات: {specifications}")
-        
-        # تنبيه المستخدم بالنجاح
+
         flash('تمت إضافة المنتج ونشره بالمتجر بنجاح! 🎉', 'success')
-        
+
     except Exception as e:
+        db.session.rollback()
         print(f"خطأ أثناء حفظ المنتج: {e}")
         flash('حدث خطأ أثناء محاولة حفظ المنتج، يرجى المحاولة مجدداً.', 'danger')
-        
-    # إعادة توجيه المستخدم تلقائياً إلى لوحة التحكم لتحديث الصفحة وعرض البيانات
-    return redirect(url_for('dashboard'))
+
+    # التوجيه بشكل صحيح لصفحة لوحة التحكم لإعادة تحديث البيانات
+    return redirect(url_for('admin_dashboard'))
+
+
 # ==========================================
 # 5. منافذ التحكم والـ APIs الخلفية
 # ==========================================
@@ -376,13 +386,15 @@ def register_tenant():
     whatsapp = data.get('whatsapp_number', '249900000000').strip()
     selected_plan = data.get('plan', 'trial')
 
-    if Tenant.query.filter_by(subdomain=subdomain).first():
-        msg = "رابط المتجر محجوز مسبقاً، اختر اسماً آخر."
-        return jsonify({"status": "error", "message": msg}) if request.is_json else render_template('register.html', error=msg)
+    # تشغيل الاستعلام تحت سياق التطبيق الموثق
+    with app.app_context():
+        if Tenant.query.filter_by(subdomain=subdomain).first():
+            msg = "رابط المتجر محجوز مسبقاً، اختر اسماً آخر."
+            return jsonify({"status": "error", "message": msg}) if request.is_json else render_template('register.html', error=msg)
 
-    if User.query.filter_by(email=email).first():
-        msg = "البريد الإلكتروني مسجل بالفعل."
-        return jsonify({"status": "error", "message": msg}) if request.is_json else render_template('register.html', error=msg)
+        if User.query.filter_by(email=email).first():
+            msg = "البريد الإلكتروني مسجل بالفعل."
+            return jsonify({"status": "error", "message": msg}) if request.is_json else render_template('register.html', error=msg)
 
     try:
         days_limit = 14 if selected_plan == "trial" else 30
@@ -494,7 +506,6 @@ def handle_products_api():
                     spec_key = key.replace('spec_', '')
                     specs[spec_key] = value
 
-        # التحقق والتحويل الآمن للأسعار والكميات لتجنب انهيار قاعدة البيانات
         try:
             price_val = float(data.get('price', 0))
             compare_price_val = float(data.get('compare_at_price')) if data.get('compare_at_price') else None
@@ -619,7 +630,6 @@ def super_admin_handle_receipt():
             tenant = Tenant.query.get(receipt.tenant_id)
             tenant.subscription_status = "active"
             if tenant.expires_at:
-                # إذا انتهى التاريخ بالفعل، نجدد له من اللحظة الحالية وليس من التاريخ القديم المنتهي
                 base_time = max(tenant.expires_at.replace(tzinfo=timezone.utc), datetime.now(timezone.utc))
                 tenant.expires_at = base_time + timedelta(days=30)
             else:
