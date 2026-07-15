@@ -42,7 +42,6 @@ app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
 
 db = SQLAlchemy(app)
 
-
 # ==========================================
 # 2. هيكل البيانات المطور (Multi-Tenant SaaS Schema)
 # ==========================================
