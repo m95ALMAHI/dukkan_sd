@@ -277,7 +277,72 @@ def view_store(subdomain):
     products = Product.query.filter_by(tenant_id=tenant.id, is_available=True).order_by(Product.created_at.desc()).all()
     return render_template('store.html', tenant=tenant, products=products)
 
+UPLOAD_FOLDER = 'static/uploads'
+ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
 
+app = Flask(__name__)
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+app.secret_key = 'super_secret_key_for_flash_messages' # مطلوب لرسائل التنبيه
+
+# تأكد من إنشاء مجلد حفظ الصور تلقائياً إذا لم يكن موجوداً
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+
+def allowed_file(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+# --- مسار استقبال وإضافة المنتجات الجديد ---
+@app.route('/add_product', methods=['POST'])
+def add_product():
+    try:
+        # 1. استقبال البيانات النصية من الفورم
+        name = request.form.get('name')
+        category = request.form.get('category')
+        brand = request.form.get('brand')
+        price = request.form.get('price')
+        barcode = request.form.get('barcode')
+        
+        # استقبال المواصفات بصيغة JSON String وتحويلها
+        specifications_raw = request.form.get('specifications', '{}')
+        specifications = json.loads(specifications_raw)
+
+        # 2. معالجة وحفظ صورة المنتج
+        image_filename = None
+        if 'image' in request.files:
+            file = request.files['image']
+            if file and file.filename != '' and allowed_file(file.filename):
+                filename = secure_filename(file.filename)
+                # توليد اسم فريد للصورة لمنع التكرار
+                unique_filename = f"prod_{int(os.path.getmtime(app.root_path))}_{filename}"
+                file.save(os.path.join(app.config['UPLOAD_FOLDER'], unique_filename))
+                image_filename = unique_filename
+
+        # 3. حفظ البيانات في قاعدة البيانات الخاصة بك
+        # (قم بتعديل هذا الجزء ليتوافق مع الـ Model الخاص بك في SQLAlchemy)
+        """
+        new_product = Product(
+            name=name,
+            category=category,
+            brand=brand,
+            price=float(price),
+            barcode=barcode,
+            image=image_filename,
+            specifications=specifications # إذا كان الحقل من نوع JSON في قاعدة البيانات
+        )
+        db.session.add(new_product)
+        db.session.commit()
+        """
+        
+        print(f"تم استقبال المنتج بنجاح: {name}, السعر: {price}, المواصفات: {specifications}")
+        
+        # تنبيه المستخدم بالنجاح
+        flash('تمت إضافة المنتج ونشره بالمتجر بنجاح! 🎉', 'success')
+        
+    except Exception as e:
+        print(f"خطأ أثناء حفظ المنتج: {e}")
+        flash('حدث خطأ أثناء محاولة حفظ المنتج، يرجى المحاولة مجدداً.', 'danger')
+        
+    # إعادة توجيه المستخدم تلقائياً إلى لوحة التحكم لتحديث الصفحة وعرض البيانات
+    return redirect(url_for('dashboard'))
 # ==========================================
 # 5. منافذ التحكم والـ APIs الخلفية
 # ==========================================
