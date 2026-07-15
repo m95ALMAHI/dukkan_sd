@@ -1,289 +1,369 @@
-لقد قمت بتحديث صفحة لوحة التحكم الخاصة بك (templates/dashboard.html) بالكامل وتجهيزها لتصبح **ديناميكية ومرنة فائق الأناقة**.
-### ✨ ما تم تحديثه في الصفحة:
- 1. **دعم كافة المنتجات (وليس فقط اللابتوبات):** تم إضافة حقول اختيار **القسم (Category)** و**الماركة (Brand)**، بجانب ميزة ذكية تقترح مواصفات جاهزة للتاجر بمجرد اختيار قسم المنتج (مثل اللابتوبات، الهواتف، الملابس).
- 2. **مُنشئ المواصفات المرن (Dynamic Specifications Creator):** زر تفاعلي يتيح للتاجر إضافة أي ميزة مخصصة (اسم الميزة وقيمتها) وتعديلها أو حذفها برمشة عين، ثم تجميعها تلقائياً على شكل كائن JSON قبل إرسالها للسيرفر.
- 3. **تحسين جدول المنتجات ليعرض المواصفات:** يعرض الجدول الآن الماركة والقسم، بالإضافة إلى كبسولات (Badges) أنيقة تلخص المواصفات الفنية لـ JSON المخزنة لكل منتج لتسهيل إدارتها.
-إليك كود الصفحة المحدث والكامل جاهزاً للاستخدام:
-```html
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>لوحة تحكم التاجر | DukkanSD</title>
+    <title>DukkanSD SaaS - لوحة التحكم</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
-    <style>body { font-family: 'Tajawal', sans-serif; }</style>
-</head>
-<body class="bg-slate-50 text-slate-800">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/flowbite/2.2.1/flowbite.min.css" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
 
-    <div class="min-h-screen flex flex-col md:flex-row">
-        <aside class="w-full md:w-64 bg-slate-900 text-white p-6 flex flex-col justify-between">
-            <div>
-                <div class="text-xl font-extrabold tracking-tight mb-8">DukkanSD <span class="text-xs text-emerald-400">SaaS</span></div>
-                <div class="space-y-4">
-                    <div class="bg-slate-800 p-4 rounded-xl">
-                        <span class="text-[10px] text-slate-400 block font-semibold">حالة الاشتراك الحالي</span>
-                        <span class="text-sm font-bold text-emerald-400">نشط (باقة {{ tenant.plan|upper }})</span>
-                        <span class="text-[10px] text-slate-300 block mt-1">ينتهي: {{ tenant.expires_at.strftime('%Y-%m-%d') if tenant.expires_at else 'غير محدد' }}</span>
-                    </div>
-                </div>
+    <style>
+        body {
+            font-family: 'Cairo', sans-serif;
+        }
+        /* مظهر مخصص لحاوية الكاميرا */
+        #reader {
+            width: 100% !important;
+            border: none !important;
+            border-radius: 0.75rem;
+            overflow: hidden;
+        }
+        #reader__scan_region {
+            background: #f3f4f6;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-800">
+
+    <div class="flex h-screen overflow-hidden">
+        <aside class="w-64 bg-slate-900 text-white flex-shrink-0 hidden md:flex flex-col">
+            <div class="p-5 text-center border-b border-slate-800">
+                <h1 class="text-2xl font-bold text-emerald-400"><i class="fa-solid fa-shop ml-2"></i>DukkanSD</h1>
+                <p class="text-xs text-slate-400 mt-1">إدارة المنتجات الذكية</p>
             </div>
-            <button onclick="openReceiptModal()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-2.5 rounded-xl text-xs font-bold transition mt-4">
-                تجديد الاشتراك / إرسال دفع 💳
-            </button>
+            <nav class="flex-1 p-4 space-y-2">
+                <a href="#" class="flex items-center p-3 text-emerald-400 bg-slate-800 rounded-lg">
+                    <i class="fa-solid fa-chart-line w-6"></i>
+                    <span>الرئيسية</span>
+                </a>
+                <a href="#products-section" class="flex items-center p-3 text-slate-300 hover:bg-slate-800 hover:text-white rounded-lg transition">
+                    <i class="fa-solid fa-box w-6"></i>
+                    <span>المنتجات</span>
+                </a>
+            </nav>
         </aside>
 
-        <main class="flex-1 p-6 md:p-10">
-            <header class="flex items-center justify-between mb-10 flex-wrap gap-4">
-                <div>
-                    <h1 class="text-2xl md:text-3xl font-extrabold text-slate-900">إدارة منتجات {{ tenant.name }}</h1>
-                    <p class="text-slate-500 text-xs mt-1">أضف منتجاتك هنا ليطلع عليها الزبائن في متجرك الخاص بشكل مرن وجذاب</p>
+        <main class="flex-1 flex flex-col overflow-y-auto">
+            <header class="bg-white shadow-sm px-6 py-4 flex items-center justify-between">
+                <button class="md:hidden text-gray-600 focus:outline-none">
+                    <i class="fa-solid fa-bars text-xl"></i>
+                </button>
+                <div class="flex items-center space-x-4 space-x-reverse mr-auto">
+                    <span class="text-sm font-medium text-gray-600">أهلاً بك، مصطفى</span>
+                    <div class="w-10 h-10 rounded-full bg-emerald-500 text-white flex items-center justify-center font-bold">
+                        M
+                    </div>
                 </div>
-                <a href="/store/{{ tenant.subdomain }}" target="_blank" class="bg-slate-900 hover:bg-slate-800 px-5 py-2.5 rounded-xl text-xs font-bold text-white transition shadow-sm">
-                    زيارة المتجر المفتوح للجمهور 🔗
-                </a>
             </header>
 
-            <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                <div class="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm h-fit">
-                    <h3 class="font-bold text-slate-900 text-base mb-4">إضافة منتج جديد</h3>
-                    <form id="productForm" class="space-y-4">
-                        <input type="text" id="p_name" placeholder="اسم المنتج (مثال: Dell Latitude 5490)" required class="w-full px-4 py-2.5 rounded-xl border text-sm bg-slate-50 focus:bg-white focus:outline-slate-400">
-                        
-                        <div class="grid grid-cols-2 gap-3">
+            <div class="p-6 max-w-7xl mx-auto w-full space-y-6">
+                
+                <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+                    <h2 class="text-xl font-bold text-gray-900 mb-6 flex items-center">
+                        <i class="fa-solid fa-circle-plus text-emerald-500 ml-2"></i>
+                        إضافة منتج جديد للمتجر
+                    </h2>
+
+                    <form id="productForm" enctype="multipart/form-data" class="space-y-6">
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                            
                             <div>
-                                <label class="block text-[10px] font-bold text-slate-400 mb-1">التصنيف</label>
-                                <select id="p_category" onchange="adjustSpecsPlaceholder(this.value)" class="w-full px-3 py-2.5 rounded-xl border text-xs bg-slate-50">
-                                    <option value="Laptops">لابتوبات</option>
-                                    <option value="Phones">هواتف ذكية</option>
-                                    <option value="Clothes">ملابس وأزياء</option>
-                                    <option value="Accessories">إكسسوارات وملحقات</option>
-                                    <option value="Other">أخرى</option>
+                                <label class="block text-sm font-semibold text-gray-700 mb-2">اسم المنتج *</label>
+                                <input type="text" name="name" required class="w-full border-gray-200 rounded-lg focus:ring-emerald-500 focus:border-emerald-500 shadow-sm" placeholder="مثال: لابتوب ديل 15 بوصة">
+                            </div>
+
+                            <div>
+                                <label class="block text-sm font-semibold text-gray-700 mb-2">القسم (Category) *</label>
+                                <select name="category" id="categorySelect" required class="w-full border-gray-200 rounded-lg focus:ring-emerald-500 focus:border-emerald-500 shadow-sm">
+                                    <option value="">اختر القسم...</option>
+                                    <option value="laptops">أجهزة لابتوب وحواسب</option>
+                                    <option value="phones">هواتف ذكية وملحقاتها</option>
+                                    <option value="clothes">ملابس وأزياء</option>
+                                    <option value="other">أقسام أخرى</option>
                                 </select>
                             </div>
+
                             <div>
-                                <label class="block text-[10px] font-bold text-slate-400 mb-1">الماركة (Brand)</label>
-                                <input type="text" id="p_brand" placeholder="مثال: HP, Apple..." class="w-full px-3 py-2.5 rounded-xl border text-xs bg-slate-50">
+                                <label class="block text-sm font-semibold text-gray-700 mb-2">الماركة (Brand) *</label>
+                                <input type="text" name="brand" required class="w-full border-gray-200 rounded-lg focus:ring-emerald-500 focus:border-emerald-500 shadow-sm" placeholder="مثال: HP, Apple, Samsung">
+                            </div>
+
+                            <div>
+                                <label class="block text-sm font-semibold text-gray-700 mb-2">السعر *</label>
+                                <div class="relative">
+                                    <input type="number" step="0.01" name="price" required class="w-full border-gray-200 rounded-lg focus:ring-emerald-500 focus:border-emerald-500 shadow-sm pr-4 pl-12" placeholder="0.00">
+                                    <span class="absolute left-3 top-2 text-gray-400 text-sm">SDG</span>
+                                </div>
+                            </div>
+
+                            <div>
+                                <label class="block text-sm font-semibold text-gray-700 mb-2">الباركود (Barcode)</label>
+                                <div class="flex space-x-2 space-x-reverse">
+                                    <input type="text" id="barcodeInput" name="barcode" class="w-full border-gray-200 rounded-lg focus:ring-emerald-500 focus:border-emerald-500 shadow-sm" placeholder="أدخل الرقم أو امسحه بالكاميرا">
+                                    <button type="button" data-modal-target="barcodeModal" data-modal-toggle="barcodeModal" onclick="startScanner()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center justify-center transition">
+                                        <i class="fa-solid fa-camera text-lg"></i>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div>
+                                <label class="block text-sm font-semibold text-gray-700 mb-2">صورة المنتج</label>
+                                <div class="flex items-center justify-center w-full">
+                                    <label class="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100 transition relative overflow-hidden">
+                                        <div class="flex flex-col items-center justify-center pt-5 pb-6" id="uploadPlaceholder">
+                                            <i class="fa-solid fa-image text-gray-400 text-2xl mb-2"></i>
+                                            <p class="text-xs text-gray-500"><span class="font-semibold">اضغط لاختيار صورة</span></p>
+                                            <p class="text-[10px] text-gray-400 mt-1">تنزيل ملف أو التقاط بالكاميرا</p>
+                                        </div>
+                                        <input type="file" name="image" id="imageInput" accept="image/*" capture="environment" class="hidden" onchange="previewImage(event)">
+                                        <img id="imagePreview" class="absolute inset-0 w-full h-full object-cover hidden" alt="معاينة الصورة">
+                                    </label>
+                                </div>
                             </div>
                         </div>
 
-                        <div class="grid grid-cols-2 gap-3">
-                            <input type="number" step="0.01" id="p_price" placeholder="السعر (SDG)" required class="w-full px-4 py-2.5 rounded-xl border text-sm bg-slate-50">
-                            <input type="number" step="0.01" id="p_compare_price" placeholder="السعر القديم (اختياري)" class="w-full px-4 py-2.5 rounded-xl border text-sm bg-slate-50">
-                        </div>
-
-                        <div class="grid grid-cols-2 gap-3">
-                            <input type="number" id="p_stock" placeholder="المخزون" value="10" class="w-full px-4 py-2.5 rounded-xl border text-sm bg-slate-50">
-                            <input type="text" id="p_barcode" placeholder="الباركود / QR" class="w-full px-4 py-2.5 rounded-xl border text-sm bg-slate-50">
-                        </div>
-
-                        <input type="url" id="p_image" placeholder="رابط صورة المنتج (اختياري)" class="w-full px-4 py-2.5 rounded-xl border text-sm bg-slate-50">
-                        <textarea id="p_desc" placeholder="وصف المنتج وتفاصيله المميّزة..." rows="2" class="w-full px-4 py-2.5 rounded-xl border text-sm bg-slate-50"></textarea>
-
-                        <div class="border-t border-slate-100 pt-4">
-                            <div class="flex justify-between items-center mb-2">
-                                <label class="block text-xs font-bold text-slate-700">المواصفات والخصائص الفنية</label>
-                                <button type="button" onclick="addNewSpecRow()" class="text-[10px] bg-slate-100 text-slate-800 hover:bg-slate-200 px-2 py-1 rounded-lg font-bold transition">
-                                    ➕ ميزة مخصصة
+                        <div class="border-t border-gray-100 pt-6">
+                            <div class="flex justify-between items-center mb-4">
+                                <h3 class="text-md font-bold text-gray-800">المواصفات الفنية للمنتج</h3>
+                                <button type="button" onclick="addNewSpecification()" class="text-sm bg-emerald-50 text-emerald-600 hover:bg-emerald-100 px-3 py-1.5 rounded-lg font-semibold transition">
+                                    <i class="fa-solid fa-plus ml-1"></i> إضافة ميزة مخصصة
                                 </button>
                             </div>
-                            <div id="specsContainer" class="space-y-2">
+                            
+                            <div id="specificationsContainer" class="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 </div>
                         </div>
 
-                        <button type="submit" class="w-full bg-slate-900 hover:bg-slate-800 text-white py-3 rounded-xl font-bold text-xs transition mt-2">نشر المنتج فوراً 🚀</button>
+                        <div class="flex justify-end pt-4 border-t border-gray-100">
+                            <button type="submit" class="bg-emerald-500 hover:bg-emerald-600 text-white font-bold px-8 py-3 rounded-lg shadow-md transition">
+                                <i class="fa-solid fa-save ml-2"></i> حفظ المنتج ونشره
+                            </button>
+                        </div>
                     </form>
                 </div>
 
-                <div class="lg:col-span-2 bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden h-fit">
-                    <table class="w-full text-right text-sm">
-                        <thead class="bg-slate-50 text-slate-500 text-xs">
-                            <tr>
-                                <th class="px-6 py-4">المنتج والتصنيف</th>
-                                <th class="px-6 py-4">المواصفات الفنية</th>
-                                <th class="px-6 py-4">السعر والمخزون</th>
-                            </tr>
-                        </thead>
-                        <tbody class="divide-y divide-slate-100">
-                            {% for product in products %}
-                            <tr>
-                                <td class="px-6 py-4">
-                                    <div class="font-bold text-slate-900">{{ product.name }}</div>
-                                    <div class="flex gap-1.5 mt-1">
-                                        <span class="text-[9px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded font-bold">{{ product.category }}</span>
-                                        {% if product.brand %}
-                                        <span class="text-[9px] bg-emerald-50 text-emerald-600 px-2 py-0.5 rounded font-bold">{{ product.brand }}</span>
-                                        {% endif %}
-                                    </div>
-                                    <div class="text-[11px] text-slate-400 mt-1.5 max-w-xs truncate">{{ product.description or '' }}</div>
-                                </td>
-                                <td class="px-6 py-4">
-                                    <div class="flex flex-wrap gap-1 max-w-[220px]">
-                                        {% if product.specifications %}
-                                            {% for key, val in product.specifications.items() %}
-                                            <span class="text-[10px] bg-slate-50 border border-slate-200/50 text-slate-700 px-2 py-0.5 rounded-lg">
-                                                <strong>{{ key }}:</strong> {{ val }}
-                                            </span>
-                                            {% endfor %}
-                                        {% else %}
-                                            <span class="text-slate-300 text-xs">-</span>
-                                        {% endif %}
-                                    </div>
-                                </td>
-                                <td class="px-6 py-4">
-                                    <div class="font-bold text-emerald-650">{{ "{:,.2f}".format(product.price) }} SDG</div>
-                                    {% if product.compare_at_price %}
-                                    <div class="text-[10px] text-slate-400 line-through">{{ "{:,.2f}".format(product.compare_at_price) }} SDG</div>
-                                    {% endif %}
-                                    <div class="text-xs text-slate-500 mt-1 font-semibold">{{ product.stock }} قطع بالمخزن</div>
-                                </td>
-                            </tr>
-                            {% else %}
-                            <tr>
-                                <td colspan="3" class="px-6 py-12 text-center text-slate-400">لا توجد منتجات حالياً. أضف منتجك الأول!</td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
+                <div id="products-section" class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+                    <div class="p-6 border-b border-gray-100 flex justify-between items-center">
+                        <h2 class="text-xl font-bold text-gray-900">المنتجات الحالية بالمتجر</h2>
+                        <span class="text-sm text-gray-500 font-semibold">إجمالي المنتجات: <span id="productCount" class="text-emerald-500">0</span></span>
+                    </div>
+                    
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-right text-sm text-gray-600">
+                            <thead class="bg-gray-50 text-gray-700 text-xs uppercase font-bold">
+                                <tr>
+                                    <th class="px-6 py-4">صورة المنتج</th>
+                                    <th class="px-6 py-4">اسم المنتج</th>
+                                    <th class="px-6 py-4">القسم / الماركة</th>
+                                    <th class="px-6 py-4">السعر</th>
+                                    <th class="px-6 py-4">الباركود</th>
+                                    <th class="px-6 py-4">المواصفات الفنية</th>
+                                    <th class="px-6 py-4">العمليات</th>
+                                </tr>
+                            </thead>
+                            <tbody id="productsTableBody" class="divide-y divide-gray-100">
+                                </tbody>
+                        </table>
+                    </div>
                 </div>
+
             </div>
         </main>
     </div>
 
-    <div id="receiptModal" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-50 p-4">
-        <div class="bg-white w-full max-w-md rounded-2xl p-6 shadow-xl">
-            <h3 class="text-base font-bold text-slate-900 mb-4">إرسال إثبات تجديد الاشتراك 💳</h3>
-            <div class="space-y-4">
-                <input type="number" id="pay_amount" placeholder="المبلغ المدفوع (SDG)" class="w-full px-4 py-2.5 rounded-xl border text-sm">
-                <input type="text" id="pay_ref" placeholder="رقم العملية / رقم الإيصال المرجعي" class="w-full px-4 py-2.5 rounded-xl border text-sm">
-                <input type="text" id="pay_image" placeholder="رابط لقطة شاشة التحويل (بنكك)" class="w-full px-4 py-2.5 rounded-xl border text-sm">
-                <div class="flex gap-3">
-                    <button onclick="closeReceiptModal()" class="flex-1 py-2.5 bg-slate-100 rounded-xl text-xs font-bold">إلغاء</button>
-                    <button onclick="submitReceipt()" class="flex-1 py-2.5 bg-emerald-600 text-white rounded-xl text-xs font-bold">إرسال للتفعيل</button>
+    <div id="barcodeModal" tabindex="-1" aria-hidden="true" class="fixed top-0 left-0 right-0 z-50 hidden w-full p-4 overflow-x-hidden overflow-y-auto md:inset-0 h-[calc(100%-1rem)] max-h-full bg-slate-900/60 flex items-center justify-center">
+        <div class="relative w-full max-w-md max-h-full bg-white rounded-xl shadow-lg">
+            <div class="flex items-center justify-between p-4 border-b border-gray-100">
+                <h3 class="text-lg font-bold text-gray-900">
+                    <i class="fa-solid fa-qrcode ml-2 text-emerald-500"></i> مسح باركود المنتج بالكاميرا
+                </h3>
+                <button type="button" onclick="stopScanner()" data-modal-hide="barcodeModal" class="text-gray-400 hover:bg-gray-200 hover:text-gray-900 rounded-lg text-sm w-8 h-8 inline-flex justify-center items-center">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+            <div class="p-6 space-y-4">
+                <p class="text-xs text-gray-500 mb-2">وجه كاميرا الهاتف الخلفية بشكل موازي نحو رمز الباركود ليتم التقاطه فوراً.</p>
+                <div class="overflow-hidden rounded-lg shadow-inner bg-black">
+                    <div id="reader"></div>
                 </div>
+            </div>
+            <div class="flex items-center justify-end p-4 border-t border-gray-100">
+                <button type="button" onclick="stopScanner()" data-modal-hide="barcodeModal" class="text-sm bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold px-4 py-2 rounded-lg transition">
+                    إغلاق الكاميرا
+                </button>
             </div>
         </div>
     </div>
 
-    <script>
-        function openReceiptModal() { document.getElementById('receiptModal').classList.replace('hidden', 'flex'); }
-        function closeReceiptModal() { document.getElementById('receiptModal').classList.replace('flex', 'hidden'); }
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/flowbite/2.2.1/flowbite.min.js"></script>
 
-        async function submitReceipt() {
-            const payload = {
-                tenant_id: "{{ tenant.id }}",
-                amount: parseFloat(document.getElementById('pay_amount').value),
-                ref: document.getElementById('pay_ref').value,
-                image: document.getElementById('pay_image').value
-            };
-            const res = await fetch('/api/v1/submit-receipt', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify(payload)
-            });
-            if(res.ok) {
-                alert('تم إرسال إيصال الدفع بنجاح! سيقوم المشرف بمراجعته وتفعيل حسابك خلال دقائق.');
-                closeReceiptModal();
-            } else {
-                alert('حدث خطأ أثناء الإرسال.');
+    <script>
+        // ------------------ 1. كود رفع ومعاينة الصور من الموبايل ------------------
+        function previewImage(event) {
+            const file = event.target.files[0];
+            const preview = document.getElementById('imagePreview');
+            const placeholder = document.getElementById('uploadPlaceholder');
+            
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    preview.src = e.target.result;
+                    preview.classList.remove('hidden');
+                    placeholder.classList.add('hidden');
+                }
+                reader.readAsDataURL(file);
             }
         }
 
-        // --- محرك المواصفات الديناميكية للمنتجات المرنة ---
-        
-        // توليد حقل جديد للمواصفات
-        function addNewSpecRow(key = '', value = '') {
-            const container = document.getElementById('specsContainer');
-            const rowId = 'spec_row_' + Date.now() + Math.random().toString(36).substr(2, 5);
+        // ------------------ 2. كود مسح الباركود بالكاميرا ------------------
+        let html5QrcodeScanner;
+
+        function startScanner() {
+            // تفعيل المسح عند فتح النافذة المنبثقة
+            html5QrcodeScanner = new Html5Qrcode("reader");
             
-            const rowHTML = `
-                <div id="${rowId}" class="flex gap-2 items-center">
-                    <input type="text" placeholder="الميزة (مثال: الرام)" value="${key}" class="spec-key w-1/2 p-2 border rounded-xl text-xs bg-white" required>
-                    <input type="text" placeholder="القيمة (مثال: 16GB)" value="${value}" class="spec-value w-1/2 p-2 border rounded-xl text-xs bg-white" required>
-                    <button type="button" onclick="document.getElementById('${rowId}').remove()" class="text-rose-500 hover:text-rose-700 p-1 text-xs">
-                        🗑️
+            const config = { 
+                fps: 15, 
+                qrbox: { width: 250, height: 120 }, // حجم مثالي لمستطيل الباركود الأفقي
+                aspectRatio: 1.777778
+            };
+
+            // تشغيل الكاميرا الخلفية بالدرجة الأولى (facingMode environment)
+            html5QrcodeScanner.start(
+                { facingMode: "environment" }, 
+                config,
+                (decodedText, decodedResult) => {
+                    // في حال نجاح مسح الباركود
+                    document.getElementById('barcodeInput').value = decodedText;
+                    
+                    // تشغيل صوت "بيب" بسيط للإشعار
+                    const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-600.wav');
+                    audio.play().catch(e => console.log("Audio play blocked"));
+
+                    // إيقاف الكاميرا وإغلاق المودال
+                    stopScanner();
+                    const modalButton = document.querySelector('[data-modal-hide="barcodeModal"]');
+                    if (modalButton) modalButton.click();
+                },
+                (errorMessage) => {
+                    // لتفادي تكرار الأخطاء الصامتة أثناء البحث عن رمز باركود
+                }
+            ).catch(err => {
+                console.error("تعذر بدء تشغيل الكاميرا: ", err);
+                alert("لم نتمكن من الوصول لكاميرا الهاتف، يرجى التأكد من إعطاء متصفحك صلاحية الوصول للكاميرا.");
+            });
+        }
+
+        function stopScanner() {
+            if (html5QrcodeScanner) {
+                html5QrcodeScanner.stop().then((ignore) => {
+                    console.log("تم إيقاف الكاميرا بنجاح.");
+                }).catch((err) => {
+                    console.error("فشل إيقاف الكاميرا: ", err);
+                });
+            }
+        }
+
+        // ------------------ 3. معالج المواصفات الديناميكية للمنتجات ------------------
+        const defaultSpecs = {
+            laptops: [
+                { key: "المعالج (CPU)", value: "" },
+                { key: "الرام (RAM)", value: "" },
+                { key: "الهارد (Storage)", value: "" },
+                { key: "كرت الشاشة (GPU)", value: "" }
+            ],
+            phones: [
+                { key: "حجم الشاشة", value: "" },
+                { key: "البطارية", value: "" },
+                { key: "الرام", value: "" },
+                { key: "كاميرا خلفية", value: "" }
+            ],
+            clothes: [
+                { key: "المقاسات المتوفرة", value: "" },
+                { key: "نوع القماش", value: "" },
+                { key: "اللون", value: "" }
+            ],
+            other: []
+        };
+
+        const categorySelect = document.getElementById('categorySelect');
+        const specsContainer = document.getElementById('specificationsContainer');
+
+        categorySelect.addEventListener('change', function() {
+            const category = this.value;
+            specsContainer.innerHTML = ''; // تنظيف الحقول الحالية
+            if (defaultSpecs[category]) {
+                defaultSpecs[category].forEach(spec => {
+                    addNewSpecification(spec.key, spec.value);
+                });
+            }
+        });
+
+        function addNewSpecification(key = "", value = "") {
+            const specId = 'spec_' + Date.now() + Math.random().toString(36).substr(2, 5);
+            const html = `
+                <div class="flex items-center space-x-2 space-x-reverse bg-gray-50 p-2.5 rounded-lg border border-gray-150" id="${specId}">
+                    <input type="text" value="${key}" placeholder="الميزة (مثال: الرام)" class="spec-key w-1/3 border-gray-200 rounded-lg text-sm focus:ring-emerald-500 focus:border-emerald-500">
+                    <input type="text" value="${value}" placeholder="القيمة (مثال: 12GB)" class="spec-value w-2/3 border-gray-200 rounded-lg text-sm focus:ring-emerald-500 focus:border-emerald-500">
+                    <button type="button" onclick="document.getElementById('${specId}').remove()" class="text-red-500 hover:text-red-700 p-1.5 transition">
+                        <i class="fa-solid fa-trash-can"></i>
                     </button>
                 </div>
             `;
-            container.insertAdjacentHTML('beforeend', rowHTML);
+            specsContainer.insertAdjacentHTML('beforeend', html);
         }
 
-        // اقتراح مواصفات تلقائية ذكية بناءً على القسم المختار لتسريع تجربة التاجر
-        function adjustSpecsPlaceholder(category) {
-            const container = document.getElementById('specsContainer');
-            container.innerHTML = ''; // تصفية القديم
-            
-            if (category === 'Laptops') {
-                addNewSpecRow('المعالج', 'Intel Core i5');
-                addNewSpecRow('الذاكرة (RAM)', '8GB');
-                addNewSpecRow('سعة التخزين', '256GB SSD');
-            } else if (category === 'Phones') {
-                addNewSpecRow('الشاشة', '6.5 بوصة');
-                addNewSpecRow('البطارية', '5000 mAh');
-                addNewSpecRow('الذاكرة', '128GB');
-            } else if (category === 'Clothes') {
-                addNewSpecRow('المقاس', 'L / XL');
-                addNewSpecRow('الخامة', 'قطن 100%');
-            } else if (category === 'Accessories') {
-                addNewSpecRow('النوع', 'لاسلكي');
-                addNewSpecRow('مدة الضمان', '6 أشهر');
-            }
-        }
-
-        // تشغيل الاقتراحات التلقائية لأول تصنيف عند تحميل الصفحة
-        document.addEventListener("DOMContentLoaded", () => {
-            adjustSpecsPlaceholder('Laptops');
-        });
-
-        // التعامل مع إرسال فورم المنتج وتجهيز الـ JSON
-        document.getElementById('productForm').addEventListener('submit', async function(e) {
+        // ------------------ 4. إرسال البيانات وحفظها ------------------
+        const productForm = document.getElementById('productForm');
+        productForm.addEventListener('submit', function(e) {
             e.preventDefault();
-            
-            // تجميع حقول المواصفات إلى كائن JSON
+
+            // تجميع المواصفات الفنية في كائن JSON
             const specs = {};
             const keys = document.querySelectorAll('.spec-key');
             const values = document.querySelectorAll('.spec-value');
-            keys.forEach((keyInput, index) => {
-                const k = keyInput.value.trim();
+            
+            keys.forEach((keyEl, index) => {
+                const k = keyEl.value.trim();
                 const v = values[index].value.trim();
                 if (k && v) {
                     specs[k] = v;
                 }
             });
 
-            const payload = {
-                name: document.getElementById('p_name').value,
-                category: document.getElementById('p_category').value,
-                brand: document.getElementById('p_brand').value || null,
-                price: parseFloat(document.getElementById('p_price').value),
-                compare_at_price: document.getElementById('p_compare_price').value ? parseFloat(document.getElementById('p_compare_price').value) : null,
-                stock: parseInt(document.getElementById('p_stock').value),
-                barcode_qr: document.getElementById('p_barcode').value || null,
-                image_url: document.getElementById('p_image').value || null,
-                description: document.getElementById('p_desc').value || null,
-                specifications: specs // إرسال المواصفات كـ JSON 🌟
-            };
+            // تجهيز FormData لرفع الصورة وبقية البيانات للسيرفر
+            const formData = new FormData(productForm);
+            formData.set('specifications', JSON.stringify(specs)); // تحويل الكائن لـ JSON String
 
-            const response = await fetch('/api/v1/products', {
+            // هنا تقوم بالاتصال مع السيرفر عبر Fetch API
+            fetch('/api/products', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-Tenant-ID': '{{ tenant.id }}'
-                },
-                body: JSON.stringify(payload)
-            });
-
-            if (response.ok) {
-                alert('تم إضافة المنتج وتحديث المتجر بنجاح!');
-                window.location.reload();
-            } else {
-                const errData = await response.json();
-                alert('فشل حفظ المنتج: ' + (errData.message || 'خطأ غير معروف'));
-            }
+                body: formData
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    alert('تم حفظ المنتج بنجاح! 🎉');
+                    productForm.reset();
+                    document.getElementById('imagePreview').classList.add('hidden');
+                    document.getElementById('uploadPlaceholder').classList.remove('hidden');
+                    specsContainer.innerHTML = '';
+                    loadProducts(); // دالة تحديث جدول المنتجات
+                } else {
+                    alert('فشل حفظ المنتج: ' + data.error);
+                }
+            })
+            .catch(err => console.error("Error saving product: ", err));
         });
+
+        // دالة وهمية لشحن المنتجات بالجدول للتجربة الفورية
+        function loadProducts() {
+            // برمجياً يتم جلب المنتجات من الـ API وعرضها في جدول المنتجات الحالية
+            console.log("تحديث قائمة المنتجات...");
+        }
     </script>
 </body>
 </html>
-
-```
