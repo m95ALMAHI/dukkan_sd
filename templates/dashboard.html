@@ -4,21 +4,16 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>DukkanSD SaaS - لوحة التحكم</title>
-    <!-- Tailwind CSS & Flowbite -->
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/flowbite/2.2.1/flowbite.min.css" rel="stylesheet" />
-    <!-- Google Fonts (Cairo) -->
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700&display=swap" rel="stylesheet">
-    <!-- Font Awesome Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <!-- مكتبة مسح الباركود عبر الكاميرا -->
     <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
 
     <style>
         body {
             font-family: 'Cairo', sans-serif;
         }
-        /* مظهر مخصص لحاوية الكاميرا لتبدو احترافية */
         #reader {
             width: 100% !important;
             border: none !important;
@@ -34,7 +29,6 @@
 <body class="bg-gray-50 text-gray-800">
 
     <div class="flex h-screen overflow-hidden">
-        <!-- Sidebar -->
         <aside class="w-64 bg-slate-900 text-white flex-shrink-0 hidden md:flex flex-col">
             <div class="p-5 text-center border-b border-slate-800">
                 <h1 class="text-2xl font-bold text-emerald-400"><i class="fa-solid fa-shop ml-2"></i>DukkanSD</h1>
@@ -52,9 +46,7 @@
             </nav>
         </aside>
 
-        <!-- Main Content -->
         <main class="flex-1 flex flex-col overflow-y-auto">
-            <!-- Top Navbar -->
             <header class="bg-white shadow-sm px-6 py-4 flex items-center justify-between">
                 <button class="md:hidden text-gray-600 focus:outline-none">
                     <i class="fa-solid fa-bars text-xl"></i>
@@ -67,27 +59,22 @@
                 </div>
             </header>
 
-            <!-- Dashboard Content -->
             <div class="p-6 max-w-7xl mx-auto w-full space-y-6">
                 
-                <!-- إضافة منتج جديد -->
                 <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
                     <h2 class="text-xl font-bold text-gray-900 mb-6 flex items-center">
                         <i class="fa-solid fa-circle-plus text-emerald-500 ml-2"></i>
                         إضافة منتج جديد للمتجر
                     </h2>
 
-                    <!-- فورم إضافة المنتج المربوط بـ Flask -->
                     <form id="productForm" method="POST" action="/add_product" enctype="multipart/form-data" class="space-y-6">
                         <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
                             
-                            <!-- اسم المنتج -->
                             <div>
                                 <label class="block text-sm font-semibold text-gray-700 mb-2">اسم المنتج *</label>
                                 <input type="text" name="name" required class="w-full border-gray-200 rounded-lg focus:ring-emerald-500 focus:border-emerald-500 shadow-sm" placeholder="مثال: لابتوب ديل 15 بوصة">
                             </div>
 
-                            <!-- القسم -->
                             <div>
                                 <label class="block text-sm font-semibold text-gray-700 mb-2">القسم (Category) *</label>
                                 <select name="category" id="categorySelect" required class="w-full border-gray-200 rounded-lg focus:ring-emerald-500 focus:border-emerald-500 shadow-sm">
@@ -99,13 +86,11 @@
                                 </select>
                             </div>
 
-                            <!-- الماركة -->
                             <div>
                                 <label class="block text-sm font-semibold text-gray-700 mb-2">الماركة (Brand) *</label>
                                 <input type="text" name="brand" required class="w-full border-gray-200 rounded-lg focus:ring-emerald-500 focus:border-emerald-500 shadow-sm" placeholder="مثال: HP, Apple, Samsung">
                             </div>
 
-                            <!-- السعر -->
                             <div>
                                 <label class="block text-sm font-semibold text-gray-700 mb-2">السعر *</label>
                                 <div class="relative">
@@ -114,18 +99,16 @@
                                 </div>
                             </div>
 
-                            <!-- الباركود مع ميزة المسح بالكاميرا -->
                             <div>
                                 <label class="block text-sm font-semibold text-gray-700 mb-2">الباركود (Barcode)</label>
                                 <div class="flex space-x-2 space-x-reverse">
                                     <input type="text" id="barcodeInput" name="barcode" class="w-full border-gray-200 rounded-lg focus:ring-emerald-500 focus:border-emerald-500 shadow-sm" placeholder="أدخل الرقم أو امسحه بالكاميرا">
-                                    <button type="button" data-modal-target="barcodeModal" data-modal-toggle="barcodeModal" onclick="startScanner()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center justify-center transition">
+                                    <button type="button" data-modal-target="barcodeModal" data-modal-toggle="barcodeModal" onclick="startScanner()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-3 rounded-lg flex items-center justify-center transition">
                                         <i class="fa-solid fa-camera text-lg"></i>
                                     </button>
                                 </div>
                             </div>
 
-                            <!-- رفع الصورة من الهاتف (تمت إزالة capture لتوفير خيار الاستوديو) -->
                             <div>
                                 <label class="block text-sm font-semibold text-gray-700 mb-2">صورة المنتج</label>
                                 <div class="flex items-center justify-center w-full">
@@ -133,18 +116,15 @@
                                         <div class="flex flex-col items-center justify-center pt-5 pb-6" id="uploadPlaceholder">
                                             <i class="fa-solid fa-image text-gray-400 text-2xl mb-2"></i>
                                             <p class="text-xs text-gray-500"><span class="font-semibold">اضغط لاختيار صورة</span></p>
-                                            <p class="text-[10px] text-gray-400 mt-1">المعرض أو التقاط مباشر</p>
+                                            <p class="text-[10px] text-gray-400 mt-1">المعرض أو كاميرا الهاتف</p>
                                         </div>
-                                        <!-- تم إزالة capture="environment" لتعطيك حرية الاختيار بين الكاميرا والملفات -->
                                         <input type="file" name="image" id="imageInput" accept="image/*" class="hidden" onchange="previewImage(event)">
-                                        <!-- معاينة الصورة بعد اختيارها -->
                                         <img id="imagePreview" class="absolute inset-0 w-full h-full object-cover hidden" alt="معاينة الصورة">
                                     </label>
                                 </div>
                             </div>
                         </div>
 
-                        <!-- قسم المواصفات المرنة (JSON Builder) -->
                         <div class="border-t border-gray-100 pt-6">
                             <div class="flex justify-between items-center mb-4">
                                 <h3 class="text-md font-bold text-gray-800">المواصفات الفنية للمنتج</h3>
@@ -154,13 +134,10 @@
                             </div>
                             
                             <div id="specificationsContainer" class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <!-- سيتم توليد الحقول هنا تلقائياً أو يدوياً -->
-                            </div>
-                            <!-- حقل مخفي لإرسال كائن الـ JSON الخاص بالمواصفات مباشرة للسيرفر -->
+                                </div>
                             <input type="hidden" name="specifications" id="specificationsJson">
                         </div>
 
-                        <!-- زر الحفظ والإرسال -->
                         <div class="flex justify-end pt-4 border-t border-gray-100">
                             <button type="submit" class="bg-emerald-500 hover:bg-emerald-600 text-white font-bold px-8 py-3 rounded-lg shadow-md transition">
                                 <i class="fa-solid fa-save ml-2"></i> حفظ المنتج ونشره
@@ -173,7 +150,6 @@
         </main>
     </div>
 
-    <!-- نافذة منبثقة (Modal) لمسح الباركود بالكاميرا -->
     <div id="barcodeModal" tabindex="-1" aria-hidden="true" class="fixed top-0 left-0 right-0 z-50 hidden w-full p-4 overflow-x-hidden overflow-y-auto md:inset-0 h-[calc(100%-1rem)] max-h-full bg-slate-900/60 flex items-center justify-center">
         <div class="relative w-full max-w-md max-h-full bg-white rounded-xl shadow-lg">
             <div class="flex items-center justify-between p-4 border-b border-gray-100">
@@ -185,14 +161,12 @@
                 </button>
             </div>
             <div class="p-6 space-y-4">
-                <p class="text-xs text-gray-500 mb-2">وجه كاميرا الهاتف الخلفية نحو رمز الباركود بشكل أفقي.</p>
-                <!-- حاوية تشغيل الكاميرا -->
+                <p class="text-xs text-gray-500 mb-2">وجه الكاميرا نحو الباركود بشكل موازي ليتم التعرف التلقائي.</p>
                 <div class="overflow-hidden rounded-lg shadow-inner bg-black relative">
                     <div id="reader"></div>
                 </div>
-                <!-- زر التقاط يدوي احتياطي لمساعدة الهاتف على المسح السريع -->
-                <button type="button" id="manualScanBtn" class="w-full bg-emerald-500 hover:bg-emerald-600 text-white text-sm font-semibold py-2.5 rounded-lg transition hidden">
-                    <i class="fa-solid fa-expand ml-1"></i> التقاط وتحليل الرمز يدوياً
+                <button type="button" id="manualScanBtn" class="w-full bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold py-2.5 rounded-lg transition flex items-center justify-center">
+                    <i class="fa-solid fa-camera-retro ml-2"></i> التقاط وإعادة تركيز الكاميرا يدوياً
                 </button>
             </div>
             <div class="flex items-center justify-between p-4 border-t border-gray-100">
@@ -204,11 +178,10 @@
         </div>
     </div>
 
-    <!-- Flowbite JS -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/flowbite/2.2.1/flowbite.min.js"></script>
 
     <script>
-        // ------------------ 1. كود رفع ومعاينة الصور من الموبايل ------------------
+        // ------------------ 1. رفع ومعاينة الصور من الموبايل ------------------
         function previewImage(event) {
             const file = event.target.files[0];
             const preview = document.getElementById('imagePreview');
@@ -225,61 +198,55 @@
             }
         }
 
-        // ------------------ 2. كود مسح الباركود بالكاميرا (محسّن جداً) ------------------
+        // ------------------ 2. كود مسح الباركود بالكاميرا (محسّن وسريع) ------------------
         let html5QrcodeScanner;
 
         function startScanner() {
-            document.getElementById('scanStatus').innerText = "جاري تشغيل الكاميرا...";
-            
-            // تهيئة القارئ مع دعم شامل لصيغ الباركود التجارية والـ QR Code
+            document.getElementById('scanStatus').innerText = "جاري فتح الكاميرا الخلفية...";
             html5QrcodeScanner = new Html5Qrcode("reader");
             
             const config = { 
-                fps: 20, 
+                fps: 25, // زيادة عدد الإطارات لتسريع التعرف
                 qrbox: function(viewfinderWidth, viewfinderHeight) {
-                    // جعل مستطيل المسح عريضاً ومناسباً للبارود السلعي
                     return {
-                        width: Math.floor(viewfinderWidth * 0.8),
-                        height: Math.floor(viewfinderHeight * 0.4)
+                        width: Math.floor(viewfinderWidth * 0.85),
+                        height: Math.floor(viewfinderHeight * 0.45)
                     };
                 },
-                aspectRatio: 1.333333 // نسبة عرض الڤيديو الافتراضية للهواتف
+                aspectRatio: 1.333333
             };
 
             html5QrcodeScanner.start(
                 { facingMode: "environment" }, 
                 config,
                 (decodedText, decodedResult) => {
-                    // النجاح في المسح التلقائي
                     handleScanSuccess(decodedText);
                 },
                 (errorMessage) => {
-                    // تحديث الحالة أثناء البحث المستمر
-                    document.getElementById('scanStatus').innerText = "وجه الكاميرا نحو الباركود...";
+                    document.getElementById('scanStatus').innerText = "ابحث عن الباركود في المستطيل...";
                 }
             ).then(() => {
                 document.getElementById('scanStatus').innerText = "الكاميرا تعمل بنشاط ✅";
-                // إظهار زر الالتقاط اليدوي في حال تأخر المسح التلقائي
-                document.getElementById('manualScanBtn').classList.remove('hidden');
             }).catch(err => {
                 console.error(err);
-                document.getElementById('scanStatus').innerText = "فشل تشغيل الكاميرا ❌";
-                alert("لم نتمكن من الوصول للكاميرا، تأكد من إعطاء الصلاحية للمتصفح.");
+                document.getElementById('scanStatus').innerText = "تعذر تشغيل الكاميرا";
+                alert("برجاء إعطاء المتصفح إذن الوصول للكاميرا من إعدادات الهاتف.");
             });
         }
 
-        // زر الالتقاط اليدوي المساعد في حال عدم الاستجابة التلقائية
+        // تحسين زر إعادة ضبط التركيز اليدوي
         document.getElementById('manualScanBtn').addEventListener('click', () => {
-            // التقاط الإطار الحالي للڤيديو وتحليله يدوياً فوراً
-            document.getElementById('scanStatus').innerText = "جاري التحليل السريع...";
-            // نقوم بمحاكاة نجاح المسح إذا كان القارئ يعمل
+            document.getElementById('scanStatus').innerText = "جاري إعادة توجيه الفوكس والتحليل...";
             if(html5QrcodeScanner) {
-                // نطلب من المتصفح محاولة إعادة التركيز التلقائي السريع
                 const videoTrack = html5QrcodeScanner.getVideoTrack();
                 if (videoTrack && typeof videoTrack.applyConstraints === 'function') {
                     videoTrack.applyConstraints({
                         advanced: [{focusMode: "continuous"}]
-                    }).catch(e => console.log("Focus not supported"));
+                    }).then(() => {
+                        document.getElementById('scanStatus').innerText = "تمت إعادة التركيز التلقائي ✅";
+                    }).catch(e => {
+                        console.log("Focus constraint not supported by this browser");
+                    });
                 }
             }
         });
@@ -287,13 +254,12 @@
         function handleScanSuccess(decodedText) {
             document.getElementById('barcodeInput').value = decodedText;
             
-            // صوت تنبيه خفيف
+            // نغمة نجاح خفيفة
             const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-600.wav');
-            audio.play().catch(e => console.log("Blocked audio"));
+            audio.play().catch(e => console.log("Audio play blocked"));
 
             stopScanner();
             
-            // إغلاق المودال المنبثق برمجياً
             const closeBtn = document.querySelector('[data-modal-hide="barcodeModal"]');
             if (closeBtn) closeBtn.click();
         }
@@ -301,29 +267,29 @@
         function stopScanner() {
             if (html5QrcodeScanner && html5QrcodeScanner.isScanning) {
                 html5QrcodeScanner.stop().then(() => {
-                    console.log("تم إيقاف الكاميرا بنجاح.");
+                    console.log("Camera Stopped");
                 }).catch((err) => {
-                    console.error("خطأ أثناء الإيقاف: ", err);
+                    console.error("Stop error: ", err);
                 });
             }
-            document.getElementById('manualScanBtn').classList.add('hidden');
         }
 
-        // ------------------ 3. معالج المواصفات وتحديث البيانات التلقائي ------------------
+        // ------------------ 3. معالجة وتوليد حقول المواصفات ------------------
         const defaultSpecs = {
             laptops: [
                 { key: "المعالج (CPU)", value: "" },
                 { key: "الرام (RAM)", value: "" },
-                { key: "الهارد (Storage)", value: "" }
+                { key: "الهارد (Storage)", value: "" },
+                { key: "كرت الشاشة", value: "" }
             ],
             phones: [
                 { key: "البطارية", value: "" },
                 { key: "الرام", value: "" },
-                { key: "الذاكرة الداخلية", value: "" }
+                { key: "المساحة الداخلية", value: "" }
             ],
             clothes: [
-                { key: "نوع القماش", value: "" },
-                { key: "اللون الرئيسي", value: "" }
+                { key: "المقاس", value: "" },
+                { key: "نوع الخامة", value: "" }
             ],
             other: []
         };
@@ -345,8 +311,8 @@
             const specId = 'spec_' + Date.now() + Math.random().toString(36).substr(2, 5);
             const html = `
                 <div class="flex items-center space-x-2 space-x-reverse bg-gray-50 p-2.5 rounded-lg border border-gray-150" id="${specId}">
-                    <input type="text" value="${key}" placeholder="الميزة (مثل: الرام)" class="spec-key w-1/3 border-gray-200 rounded-lg text-sm focus:ring-emerald-500 focus:border-emerald-500">
-                    <input type="text" value="${value}" placeholder="القيمة (مثل: 12GB)" class="spec-value w-2/3 border-gray-200 rounded-lg text-sm focus:ring-emerald-500 focus:border-emerald-500">
+                    <input type="text" value="${key}" placeholder="الميزة" class="spec-key w-1/3 border-gray-200 rounded-lg text-sm focus:ring-emerald-500 focus:border-emerald-500">
+                    <input type="text" value="${value}" placeholder="القيمة" class="spec-value w-2/3 border-gray-200 rounded-lg text-sm focus:ring-emerald-500 focus:border-emerald-500">
                     <button type="button" onclick="document.getElementById('${specId}').remove()" class="text-red-500 hover:text-red-700 p-1.5 transition">
                         <i class="fa-solid fa-trash-can"></i>
                     </button>
@@ -355,10 +321,11 @@
             specsContainer.insertAdjacentHTML('beforeend', html);
         }
 
-        // معالجة البيانات قبل الإرسال التقليدي وتحديث الصفحة فوراً
+        // ------------------ 4. معالجة الحفظ والرفع لـ Flask بالتفصيل ------------------
         const productForm = document.getElementById('productForm');
+        
         productForm.addEventListener('submit', function(e) {
-            // نقوم بتجميع الـ JSON في الحقل المخفي قبل إرسال الفورم الفعلي
+            // تجميع حقول المواصفات في كائن JSON
             const specs = {};
             const keys = document.querySelectorAll('.spec-key');
             const values = document.querySelectorAll('.spec-value');
@@ -371,12 +338,12 @@
                 }
             });
 
-            // وضع قيمة الـ JSON داخل الحقل المخفي ليتم إرساله مع الـ FormData المعتادة
+            // تعبئة الحقل المخفي بالـ JSON String قبل الإرسال الفعلي للفورم
             document.getElementById('specificationsJson').value = JSON.stringify(specs);
-            
-            // نترك الفورم يرسل بشكل طبيعي (أو عبر Ajax متبوعاً بـ reload)
-            // لجعل الصفحة تتحدث تلقائياً وتُظهر البيانات الجديدة، سنترك الفورم يرسل للرابط "/add_product" الخاص بـ Flask
+
+            // نترك الفورم يكمل مسار إرساله الطبيعي (Action="/add_product") لضمان تحديث الصفحة بنجاح وسرعة!
         });
     </script>
 </body>
 </html>
+
