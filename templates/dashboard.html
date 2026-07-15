@@ -1,3 +1,10 @@
+لقد قمت بتحديث صفحة لوحة التحكم الخاصة بك (templates/dashboard.html) بالكامل وتجهيزها لتصبح **ديناميكية ومرنة فائق الأناقة**.
+### ✨ ما تم تحديثه في الصفحة:
+ 1. **دعم كافة المنتجات (وليس فقط اللابتوبات):** تم إضافة حقول اختيار **القسم (Category)** و**الماركة (Brand)**، بجانب ميزة ذكية تقترح مواصفات جاهزة للتاجر بمجرد اختيار قسم المنتج (مثل اللابتوبات، الهواتف، الملابس).
+ 2. **مُنشئ المواصفات المرن (Dynamic Specifications Creator):** زر تفاعلي يتيح للتاجر إضافة أي ميزة مخصصة (اسم الميزة وقيمتها) وتعديلها أو حذفها برمشة عين، ثم تجميعها تلقائياً على شكل كائن JSON قبل إرسالها للسيرفر.
+ 3. **تحسين جدول المنتجات ليعرض المواصفات:** يعرض الجدول الآن الماركة والقسم، بالإضافة إلى كبسولات (Badges) أنيقة تلخص المواصفات الفنية لـ JSON المخزنة لكل منتج لتسهيل إدارتها.
+إليك كود الصفحة المحدث والكامل جاهزاً للاستخدام:
+```html
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
@@ -28,12 +35,12 @@
         </aside>
 
         <main class="flex-1 p-6 md:p-10">
-            <header class="flex items-center justify-between mb-10">
+            <header class="flex items-center justify-between mb-10 flex-wrap gap-4">
                 <div>
                     <h1 class="text-2xl md:text-3xl font-extrabold text-slate-900">إدارة منتجات {{ tenant.name }}</h1>
-                    <p class="text-slate-500 text-xs mt-1">أضف منتجاتك هنا ليطلع عليها الزبائن في متجرك الخاص</p>
+                    <p class="text-slate-500 text-xs mt-1">أضف منتجاتك هنا ليطلع عليها الزبائن في متجرك الخاص بشكل مرن وجذاب</p>
                 </div>
-                <a href="/store/{{ tenant.subdomain }}" target="_blank" class="bg-slate-900 hover:bg-slate-800 px-5 py-2.5 rounded-xl text-xs font-bold text-white transition">
+                <a href="/store/{{ tenant.subdomain }}" target="_blank" class="bg-slate-900 hover:bg-slate-800 px-5 py-2.5 rounded-xl text-xs font-bold text-white transition shadow-sm">
                     زيارة المتجر المفتوح للجمهور 🔗
                 </a>
             </header>
@@ -42,22 +49,60 @@
                 <div class="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm h-fit">
                     <h3 class="font-bold text-slate-900 text-base mb-4">إضافة منتج جديد</h3>
                     <form id="productForm" class="space-y-4">
-                        <input type="text" id="p_name" placeholder="اسم المنتج" required class="w-full px-4 py-2.5 rounded-xl border text-sm">
-                        <input type="number" step="0.01" id="p_price" placeholder="السعر بالجنيه السوداني (SDG)" required class="w-full px-4 py-2.5 rounded-xl border text-sm">
-                        <input type="number" id="p_stock" placeholder="الكمية المتوفرة في المخزن" value="10" class="w-full px-4 py-2.5 rounded-xl border text-sm">
-                        <input type="url" id="p_image" placeholder="رابط صورة المنتج (اختياري)" class="w-full px-4 py-2.5 rounded-xl border text-sm">
-                        <textarea id="p_desc" placeholder="وصف المنتج وتفاصيله المميّزة..." rows="3" class="w-full px-4 py-2.5 rounded-xl border text-sm"></textarea>
-                        <button type="submit" class="w-full bg-slate-900 text-white py-3 rounded-xl font-bold text-xs">نشر المنتج فوراً 🚀</button>
+                        <input type="text" id="p_name" placeholder="اسم المنتج (مثال: Dell Latitude 5490)" required class="w-full px-4 py-2.5 rounded-xl border text-sm bg-slate-50 focus:bg-white focus:outline-slate-400">
+                        
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-[10px] font-bold text-slate-400 mb-1">التصنيف</label>
+                                <select id="p_category" onchange="adjustSpecsPlaceholder(this.value)" class="w-full px-3 py-2.5 rounded-xl border text-xs bg-slate-50">
+                                    <option value="Laptops">لابتوبات</option>
+                                    <option value="Phones">هواتف ذكية</option>
+                                    <option value="Clothes">ملابس وأزياء</option>
+                                    <option value="Accessories">إكسسوارات وملحقات</option>
+                                    <option value="Other">أخرى</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-[10px] font-bold text-slate-400 mb-1">الماركة (Brand)</label>
+                                <input type="text" id="p_brand" placeholder="مثال: HP, Apple..." class="w-full px-3 py-2.5 rounded-xl border text-xs bg-slate-50">
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-3">
+                            <input type="number" step="0.01" id="p_price" placeholder="السعر (SDG)" required class="w-full px-4 py-2.5 rounded-xl border text-sm bg-slate-50">
+                            <input type="number" step="0.01" id="p_compare_price" placeholder="السعر القديم (اختياري)" class="w-full px-4 py-2.5 rounded-xl border text-sm bg-slate-50">
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-3">
+                            <input type="number" id="p_stock" placeholder="المخزون" value="10" class="w-full px-4 py-2.5 rounded-xl border text-sm bg-slate-50">
+                            <input type="text" id="p_barcode" placeholder="الباركود / QR" class="w-full px-4 py-2.5 rounded-xl border text-sm bg-slate-50">
+                        </div>
+
+                        <input type="url" id="p_image" placeholder="رابط صورة المنتج (اختياري)" class="w-full px-4 py-2.5 rounded-xl border text-sm bg-slate-50">
+                        <textarea id="p_desc" placeholder="وصف المنتج وتفاصيله المميّزة..." rows="2" class="w-full px-4 py-2.5 rounded-xl border text-sm bg-slate-50"></textarea>
+
+                        <div class="border-t border-slate-100 pt-4">
+                            <div class="flex justify-between items-center mb-2">
+                                <label class="block text-xs font-bold text-slate-700">المواصفات والخصائص الفنية</label>
+                                <button type="button" onclick="addNewSpecRow()" class="text-[10px] bg-slate-100 text-slate-800 hover:bg-slate-200 px-2 py-1 rounded-lg font-bold transition">
+                                    ➕ ميزة مخصصة
+                                </button>
+                            </div>
+                            <div id="specsContainer" class="space-y-2">
+                                </div>
+                        </div>
+
+                        <button type="submit" class="w-full bg-slate-900 hover:bg-slate-800 text-white py-3 rounded-xl font-bold text-xs transition mt-2">نشر المنتج فوراً 🚀</button>
                     </form>
                 </div>
 
-                <div class="lg:col-span-2 bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+                <div class="lg:col-span-2 bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden h-fit">
                     <table class="w-full text-right text-sm">
                         <thead class="bg-slate-50 text-slate-500 text-xs">
                             <tr>
-                                <th class="px-6 py-4">المنتج</th>
-                                <th class="px-6 py-4">السعر</th>
-                                <th class="px-6 py-4">المخزون</th>
+                                <th class="px-6 py-4">المنتج والتصنيف</th>
+                                <th class="px-6 py-4">المواصفات الفنية</th>
+                                <th class="px-6 py-4">السعر والمخزون</th>
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-slate-100">
@@ -65,10 +110,34 @@
                             <tr>
                                 <td class="px-6 py-4">
                                     <div class="font-bold text-slate-900">{{ product.name }}</div>
-                                    <div class="text-xs text-slate-400">{{ product.description or '' }}</div>
+                                    <div class="flex gap-1.5 mt-1">
+                                        <span class="text-[9px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded font-bold">{{ product.category }}</span>
+                                        {% if product.brand %}
+                                        <span class="text-[9px] bg-emerald-50 text-emerald-600 px-2 py-0.5 rounded font-bold">{{ product.brand }}</span>
+                                        {% endif %}
+                                    </div>
+                                    <div class="text-[11px] text-slate-400 mt-1.5 max-w-xs truncate">{{ product.description or '' }}</div>
                                 </td>
-                                <td class="px-6 py-4 font-bold text-emerald-600">{{ "{:,.2f}".format(product.price) }} SDG</td>
-                                <td class="px-6 py-4">{{ product.stock }} قطع</td>
+                                <td class="px-6 py-4">
+                                    <div class="flex flex-wrap gap-1 max-w-[220px]">
+                                        {% if product.specifications %}
+                                            {% for key, val in product.specifications.items() %}
+                                            <span class="text-[10px] bg-slate-50 border border-slate-200/50 text-slate-700 px-2 py-0.5 rounded-lg">
+                                                <strong>{{ key }}:</strong> {{ val }}
+                                            </span>
+                                            {% endfor %}
+                                        {% else %}
+                                            <span class="text-slate-300 text-xs">-</span>
+                                        {% endif %}
+                                    </div>
+                                </td>
+                                <td class="px-6 py-4">
+                                    <div class="font-bold text-emerald-650">{{ "{:,.2f}".format(product.price) }} SDG</div>
+                                    {% if product.compare_at_price %}
+                                    <div class="text-[10px] text-slate-400 line-through">{{ "{:,.2f}".format(product.compare_at_price) }} SDG</div>
+                                    {% endif %}
+                                    <div class="text-xs text-slate-500 mt-1 font-semibold">{{ product.stock }} قطع بالمخزن</div>
+                                </td>
                             </tr>
                             {% else %}
                             <tr>
@@ -83,7 +152,7 @@
     </div>
 
     <div id="receiptModal" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-50 p-4">
-        <div class="bg-white w-full max-w-md rounded-2xl p-6">
+        <div class="bg-white w-full max-w-md rounded-2xl p-6 shadow-xl">
             <h3 class="text-base font-bold text-slate-900 mb-4">إرسال إثبات تجديد الاشتراك 💳</h3>
             <div class="space-y-4">
                 <input type="number" id="pay_amount" placeholder="المبلغ المدفوع (SDG)" class="w-full px-4 py-2.5 rounded-xl border text-sm">
@@ -121,15 +190,81 @@
             }
         }
 
+        // --- محرك المواصفات الديناميكية للمنتجات المرنة ---
+        
+        // توليد حقل جديد للمواصفات
+        function addNewSpecRow(key = '', value = '') {
+            const container = document.getElementById('specsContainer');
+            const rowId = 'spec_row_' + Date.now() + Math.random().toString(36).substr(2, 5);
+            
+            const rowHTML = `
+                <div id="${rowId}" class="flex gap-2 items-center">
+                    <input type="text" placeholder="الميزة (مثال: الرام)" value="${key}" class="spec-key w-1/2 p-2 border rounded-xl text-xs bg-white" required>
+                    <input type="text" placeholder="القيمة (مثال: 16GB)" value="${value}" class="spec-value w-1/2 p-2 border rounded-xl text-xs bg-white" required>
+                    <button type="button" onclick="document.getElementById('${rowId}').remove()" class="text-rose-500 hover:text-rose-700 p-1 text-xs">
+                        🗑️
+                    </button>
+                </div>
+            `;
+            container.insertAdjacentHTML('beforeend', rowHTML);
+        }
+
+        // اقتراح مواصفات تلقائية ذكية بناءً على القسم المختار لتسريع تجربة التاجر
+        function adjustSpecsPlaceholder(category) {
+            const container = document.getElementById('specsContainer');
+            container.innerHTML = ''; // تصفية القديم
+            
+            if (category === 'Laptops') {
+                addNewSpecRow('المعالج', 'Intel Core i5');
+                addNewSpecRow('الذاكرة (RAM)', '8GB');
+                addNewSpecRow('سعة التخزين', '256GB SSD');
+            } else if (category === 'Phones') {
+                addNewSpecRow('الشاشة', '6.5 بوصة');
+                addNewSpecRow('البطارية', '5000 mAh');
+                addNewSpecRow('الذاكرة', '128GB');
+            } else if (category === 'Clothes') {
+                addNewSpecRow('المقاس', 'L / XL');
+                addNewSpecRow('الخامة', 'قطن 100%');
+            } else if (category === 'Accessories') {
+                addNewSpecRow('النوع', 'لاسلكي');
+                addNewSpecRow('مدة الضمان', '6 أشهر');
+            }
+        }
+
+        // تشغيل الاقتراحات التلقائية لأول تصنيف عند تحميل الصفحة
+        document.addEventListener("DOMContentLoaded", () => {
+            adjustSpecsPlaceholder('Laptops');
+        });
+
+        // التعامل مع إرسال فورم المنتج وتجهيز الـ JSON
         document.getElementById('productForm').addEventListener('submit', async function(e) {
             e.preventDefault();
+            
+            // تجميع حقول المواصفات إلى كائن JSON
+            const specs = {};
+            const keys = document.querySelectorAll('.spec-key');
+            const values = document.querySelectorAll('.spec-value');
+            keys.forEach((keyInput, index) => {
+                const k = keyInput.value.trim();
+                const v = values[index].value.trim();
+                if (k && v) {
+                    specs[k] = v;
+                }
+            });
+
             const payload = {
                 name: document.getElementById('p_name').value,
+                category: document.getElementById('p_category').value,
+                brand: document.getElementById('p_brand').value || null,
                 price: parseFloat(document.getElementById('p_price').value),
+                compare_at_price: document.getElementById('p_compare_price').value ? parseFloat(document.getElementById('p_compare_price').value) : null,
                 stock: parseInt(document.getElementById('p_stock').value),
+                barcode_qr: document.getElementById('p_barcode').value || null,
                 image_url: document.getElementById('p_image').value || null,
-                description: document.getElementById('p_desc').value || null
+                description: document.getElementById('p_desc').value || null,
+                specifications: specs // إرسال المواصفات كـ JSON 🌟
             };
+
             const response = await fetch('/api/v1/products', {
                 method: 'POST',
                 headers: {
@@ -138,11 +273,17 @@
                 },
                 body: JSON.stringify(payload)
             });
+
             if (response.ok) {
-                alert('تم إضافة المنتج وتحديث المتجر!');
+                alert('تم إضافة المنتج وتحديث المتجر بنجاح!');
                 window.location.reload();
+            } else {
+                const errData = await response.json();
+                alert('فشل حفظ المنتج: ' + (errData.message || 'خطأ غير معروف'));
             }
         });
     </script>
 </body>
 </html>
+
+```
