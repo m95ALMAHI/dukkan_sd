@@ -655,14 +655,23 @@ def handle_products_api():
         "products": [p.to_dict() for p in products]
     })
 
+@app.route('/admin/dashboard')
+def admin_dashboard():
+    user_id = session.get('user_id')
+    tenant_id = session.get('tenant_id')
 
-@app.route('/super-admin/dashboard')
-def super_admin_dashboard_updated():
-    if session.get('role') != 'super_admin':
+    if not user_id or not tenant_id:
         return redirect(url_for('login_page'))
-    tenants = Tenant.query.all()
-    receipts = SubscriptionReceipt.query.filter_by(status="pending").all()
-    return render_template('super_admin.html', tenants=tenants, receipts=receipts)
+
+    tenant = Tenant.query.get(tenant_id)
+    if not tenant or tenant.subscription_status != "active":
+        return redirect(url_for('login_page'))
+
+    # جلب المنتجات وتحويلها فوراً إلى dicts متوافقة تماماً مع JSON لمنع انهيار Jinja2
+    raw_products = Product.query.filter_by(tenant_id=tenant.id).all()
+    products = [p.to_dict() for p in raw_products]
+    
+    return render_template('dashboard.html', tenant=tenant, products=products)
 
 
 @app.route('/api/v1/super-admin/update-tenant', methods=['POST'])
