@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>DukkanSD SaaS - لوحة التحكم</title>
+    <title>DukkanSD SaaS - لوحة التحكم الاحترافية</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/flowbite/2.2.1/flowbite.min.css" rel="stylesheet" />
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700&display=swap" rel="stylesheet">
@@ -13,6 +13,7 @@
     <style>
         body {
             font-family: 'Cairo', sans-serif;
+            background-color: #f8fafc;
         }
         #reader {
             width: 100% !important;
@@ -26,30 +27,36 @@
         }
     </style>
 </head>
-<body class="bg-gray-50 text-gray-800">
+<body class="text-gray-800 antialiased">
 
     <div class="flex h-screen overflow-hidden">
-        
-        <aside id="sidebar-menu" class="fixed inset-y-0 right-0 z-40 w-64 bg-slate-900 text-white flex-shrink-0 transform translate-x-full transition-transform duration-300 ease-in-out md:translate-x-0 md:static md:flex md:flex-col">
+
+        <aside id="sidebar-menu" class="fixed inset-y-0 right-0 z-40 w-64 bg-slate-900 text-white flex-shrink-0 transform translate-x-full transition-transform duration-300 ease-in-out md:translate-x-0 md:static md:flex md:flex-col shadow-xl">
             <div class="p-5 text-center border-b border-slate-800 flex justify-between items-center md:block">
                 <div>
-                    <h1 class="text-2xl font-bold text-emerald-400"><i class="fa-solid fa-shop ml-2"></i>DukkanSD</h1>
-                    <p class="text-xs text-slate-400 mt-1">إدارة المنتجات الذكية</p>
+                    <h1 class="text-2xl font-bold text-emerald-400 flex items-center justify-center gap-2">
+                        <i class="fa-solid fa-shop"></i> DukkanSD
+                    </h1>
+                    <p class="text-xs text-slate-400 mt-1">إدارة المتاجر السحابية الذكية</p>
                 </div>
                 <button onclick="toggleSidebar()" class="text-slate-400 hover:text-white md:hidden">
                     <i class="fa-solid fa-xmark text-xl"></i>
                 </button>
             </div>
-            <nav class="flex-1 p-4 space-y-2">
-                <a href="#" class="flex items-center p-3 text-emerald-400 bg-slate-800 rounded-lg">
+            <nav class="flex-1 p-4 space-y-1">
+                <a href="#" class="flex items-center p-3 text-emerald-400 bg-slate-800/80 rounded-lg font-medium transition">
                     <i class="fa-solid fa-chart-line w-6 text-lg"></i>
-                    <span>الرئيسية</span>
+                    <span>الرئيسية والإحصائيات</span>
                 </a>
                 <a href="#products-section" class="flex items-center p-3 text-slate-300 hover:bg-slate-800 hover:text-white rounded-lg transition">
                     <i class="fa-solid fa-box w-6 text-lg"></i>
-                    <span>المنتجات</span>
+                    <span>إدارة المنتجات</span>
                 </a>
-                <a href="/logout" class="flex items-center p-3 text-red-400 hover:bg-red-950/30 rounded-lg transition mt-10">
+                <button data-modal-target="subscriptionModal" data-modal-toggle="subscriptionModal" class="w-full flex items-center p-3 text-slate-300 hover:bg-slate-800 hover:text-white rounded-lg transition text-right">
+                    <i class="fa-solid fa-credit-card w-6 text-lg text-amber-400"></i>
+                    <span>باقة الاشتراك والتجديد</span>
+                </button>
+                <a href="/logout" class="flex items-center p-3 text-red-400 hover:bg-red-950/20 rounded-lg transition mt-8 border-t border-slate-800/50">
                     <i class="fa-solid fa-right-from-bracket w-6 text-lg"></i>
                     <span>تسجيل الخروج</span>
                 </a>
@@ -59,14 +66,17 @@
         <div id="sidebar-backdrop" onclick="toggleSidebar()" class="fixed inset-0 z-30 bg-slate-900/50 hidden md:hidden"></div>
 
         <main class="flex-1 flex flex-col overflow-y-auto">
-            
-            <header class="bg-white shadow-sm px-6 py-4 flex items-center justify-between">
+
+            <header class="bg-white border-b border-gray-100 px-6 py-4 flex items-center justify-between sticky top-0 z-20">
                 <button onclick="toggleSidebar()" class="md:hidden text-gray-600 focus:outline-none hover:text-emerald-500 transition">
                     <i class="fa-solid fa-bars text-xl"></i>
                 </button>
                 <div class="flex items-center space-x-4 space-x-reverse mr-auto">
-                    <span class="text-sm font-medium text-gray-600">أهلاً بك، {{ tenant.name }}</span>
-                    <div class="w-10 h-10 rounded-full bg-emerald-500 text-white flex items-center justify-center font-bold shadow-sm">
+                    <div class="text-left md:text-right">
+                        <p class="text-xs text-gray-400">مرحباً بك</p>
+                        <span class="text-sm font-bold text-gray-800">{{ tenant.name }}</span>
+                    </div>
+                    <div class="w-10 h-10 rounded-full bg-emerald-500 text-white flex items-center justify-center font-bold shadow-sm ring-4 ring-emerald-50">
                         {{ tenant.name[0] | upper }}
                     </div>
                 </div>
@@ -74,32 +84,110 @@
 
             <div class="p-6 max-w-7xl mx-auto w-full space-y-6">
 
-                <div class="bg-gradient-to-r from-emerald-500 to-teal-600 rounded-xl shadow-md p-6 text-white flex flex-col md:flex-row items-center justify-between gap-4">
-                    <div class="space-y-1 text-center md:text-right">
-                        <h3 class="text-lg font-bold">رابط متجرك المباشر على الإنترنت</h3>
-                        <p class="text-xs text-emerald-100">انشر الرابط لزبائنك لاستقبل الطلبات مباشرة</p>
+                <div class="bg-white border border-slate-100 rounded-xl p-5 shadow-sm flex flex-col lg:flex-row items-center justify-between gap-4">
+                    <div class="flex items-center gap-4 text-right">
+                        <div class="p-3 bg-amber-50 text-amber-500 rounded-xl text-2xl">
+                            <i class="fa-solid fa-star-of-life animate-spin-slow"></i>
+                        </div>
+                        <div>
+                            <p class="text-sm font-semibold text-gray-500">حالة اشتراك متجرك الحالي</p>
+                            <div class="flex items-center gap-2 mt-1">
+                                <span class="text-base font-bold text-gray-900">الباقة: {{ tenant.plan | upper }}</span>
+                                <span class="bg-emerald-100 text-emerald-800 text-[11px] font-extrabold px-2 py-0.5 rounded-full">نشط</span>
+                            </div>
+                        </div>
                     </div>
-                    <div class="flex items-center bg-white/10 p-2 rounded-lg border border-white/20 w-full md:w-auto max-w-md">
-                        <span id="storeUrl" class="text-sm font-semibold select-all truncate px-2 text-emerald-50">
+                    <div class="text-center lg:text-right">
+                        <p class="text-xs text-gray-400">تاريخ انتهاء الصلاحية</p>
+                        <p class="text-sm font-bold text-slate-800 mt-1">
+                            <i class="fa-regular fa-calendar-check ml-1 text-emerald-500"></i>
+                            {% if tenant.expires_at %}
+                                {{ tenant.expires_at.strftime('%Y-%m-%d') }}
+                            {% else %}
+                                غير محدد
+                            {% endif %}
+                        </p>
+                    </div>
+                    <div>
+                        <button data-modal-target="subscriptionModal" data-modal-toggle="subscriptionModal" class="bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white font-bold text-sm px-6 py-3 rounded-xl shadow-md transition-all flex items-center gap-2">
+                            <i class="fa-solid fa-credit-card"></i> تجديد الاشتراك / ترقية الباقة
+                        </button>
+                    </div>
+                </div>
+
+                <div class="bg-gradient-to-r from-emerald-500 to-teal-600 rounded-2xl shadow-lg p-6 text-white flex flex-col md:flex-row items-center justify-between gap-4">
+                    <div class="space-y-1 text-center md:text-right">
+                        <h3 class="text-lg font-bold">رابط متجرك المباشر على الإنترنت 🌐</h3>
+                        <p class="text-xs text-emerald-100">انشر الرابط لزبائنك لاستقبال وعرض الطلبات والمنتجات</p>
+                    </div>
+                    <div class="flex items-center bg-white/10 p-2 rounded-xl border border-white/20 w-full md:w-auto max-w-md">
+                        <span id="storeUrl" class="text-sm font-semibold select-all truncate px-3 text-emerald-50 font-mono">
                             https://dukkan-sd.onrender.com/store/{{ tenant.subdomain }}
                         </span>
-                        <button onclick="copyStoreUrl()" class="bg-white text-emerald-700 hover:bg-emerald-50 font-bold px-3 py-1.5 rounded-md text-xs transition flex items-center gap-1 shadow">
-                            <i class="fa-solid fa-copy"></i> نسخ
+                        <button onclick="copyStoreUrl()" class="bg-white text-emerald-700 hover:bg-emerald-50 font-bold px-4 py-2 rounded-lg text-xs transition flex items-center gap-1.5 shadow-sm">
+                            <i class="fa-solid fa-copy"></i> نسخ الرابط
                         </button>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div class="bg-white border border-gray-100 p-5 rounded-2xl shadow-sm hover:shadow-md transition-all">
+                        <div class="flex justify-between items-start">
+                            <div class="space-y-2">
+                                <p class="text-xs font-bold text-gray-400">إجمالي المنتجات</p>
+                                <p class="text-2xl font-black text-gray-900">{{ products | length }}</p>
+                            </div>
+                            <div class="p-3 bg-emerald-50 text-emerald-500 rounded-xl">
+                                <i class="fa-solid fa-box text-xl"></i>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="bg-white border border-gray-100 p-5 rounded-2xl shadow-sm hover:shadow-md transition-all">
+                        <div class="flex justify-between items-start">
+                            <div class="space-y-2">
+                                <p class="text-xs font-bold text-gray-400">الطلبات الجديدة</p>
+                                <p class="text-2xl font-black text-gray-900">0</p>
+                            </div>
+                            <div class="p-3 bg-blue-50 text-blue-500 rounded-xl">
+                                <i class="fa-solid fa-cart-shopping text-xl"></i>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="bg-white border border-gray-100 p-5 rounded-2xl shadow-sm hover:shadow-md transition-all">
+                        <div class="flex justify-between items-start">
+                            <div class="space-y-2">
+                                <p class="text-xs font-bold text-gray-400">صافي المبيعات</p>
+                                <p class="text-xl font-black text-gray-900">0.00 SDG</p>
+                            </div>
+                            <div class="p-3 bg-purple-50 text-purple-500 rounded-xl">
+                                <i class="fa-solid fa-sack-dollar text-xl"></i>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="bg-white border border-gray-100 p-5 rounded-2xl shadow-sm hover:shadow-md transition-all">
+                        <div class="flex justify-between items-start">
+                            <div class="space-y-2">
+                                <p class="text-xs font-bold text-gray-400">زيارات المتجر</p>
+                                <p class="text-2xl font-black text-gray-900">120</p>
+                            </div>
+                            <div class="p-3 bg-teal-50 text-teal-500 rounded-xl">
+                                <i class="fa-solid fa-chart-simple text-xl"></i>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
                 {% with messages = get_flashed_messages(with_categories=true) %}
                   {% if messages %}
                     {% for category, message in messages %}
-                      <div class="p-4 rounded-lg text-sm {% if category == 'success' %}bg-emerald-50 text-emerald-800 border border-emerald-200{% else %}bg-red-50 text-red-800 border border-red-200{% endif %}" role="alert">
+                      <div class="p-4 rounded-xl text-sm font-semibold {% if category == 'success' %}bg-emerald-50 text-emerald-800 border border-emerald-200{% else %}bg-red-50 text-red-800 border border-red-200{% endif %}" role="alert">
                           {{ message }}
                       </div>
                     {% endfor %}
                   {% endif %}
                 {% endwith %}
 
-                <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+                <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
                     <h2 id="formTitle" class="text-xl font-bold text-gray-900 mb-6 flex items-center">
                         <i class="fa-solid fa-circle-plus text-emerald-500 ml-2"></i>
                         إضافة منتج جديد للمتجر
@@ -112,12 +200,12 @@
 
                             <div>
                                 <label class="block text-sm font-semibold text-gray-700 mb-2">اسم المنتج *</label>
-                                <input type="text" name="name" id="nameInput" required class="w-full border-gray-200 rounded-lg focus:ring-emerald-500 focus:border-emerald-500 shadow-sm" placeholder="مثال: لابتوب ديل 15 بوصة">
+                                <input type="text" name="name" id="nameInput" required class="w-full border-gray-200 rounded-xl focus:ring-emerald-500 focus:border-emerald-500 shadow-sm" placeholder="مثال: لابتوب ديل 15 بوصة">
                             </div>
 
                             <div>
                                 <label class="block text-sm font-semibold text-gray-700 mb-2">القسم (Category) *</label>
-                                <select name="category" id="categorySelect" required class="w-full border-gray-200 rounded-lg focus:ring-emerald-500 focus:border-emerald-500 shadow-sm">
+                                <select name="category" id="categorySelect" required class="w-full border-gray-200 rounded-xl focus:ring-emerald-500 focus:border-emerald-500 shadow-sm">
                                     <option value="">اختر القسم...</option>
                                     <option value="laptops">أجهزة لابتوب وحواسب</option>
                                     <option value="phones">هواتف ذكية وملحقاتها</option>
@@ -128,35 +216,35 @@
 
                             <div>
                                 <label class="block text-sm font-semibold text-gray-700 mb-2">الماركة (Brand) *</label>
-                                <input type="text" name="brand" id="brandInput" required class="w-full border-gray-200 rounded-lg focus:ring-emerald-500 focus:border-emerald-500 shadow-sm" placeholder="مثال: HP, Apple, Samsung">
+                                <input type="text" name="brand" id="brandInput" required class="w-full border-gray-200 rounded-xl focus:ring-emerald-500 focus:border-emerald-500 shadow-sm" placeholder="مثال: HP, Apple, Samsung">
                             </div>
 
                             <div>
                                 <label class="block text-sm font-semibold text-gray-700 mb-2">السعر الحالي للبيع *</label>
                                 <div class="relative">
-                                    <input type="number" step="0.01" name="price" id="priceInput" required class="w-full border-gray-200 rounded-lg focus:ring-emerald-500 focus:border-emerald-500 shadow-sm pr-4 pl-12" placeholder="0.00">
+                                    <input type="number" step="0.01" name="price" id="priceInput" required class="w-full border-gray-200 rounded-xl focus:ring-emerald-500 focus:border-emerald-500 shadow-sm pr-4 pl-12" placeholder="0.00">
                                     <span class="absolute left-3 top-2 text-gray-400 text-sm">SDG</span>
                                 </div>
                             </div>
 
                             <div>
-                                <label class="block text-sm font-semibold text-gray-700 mb-2">السعر قبل الخصم (عرض خاص)</label>
+                                <label class="block text-sm font-semibold text-gray-700 mb-2">السعر قبل الخصم (إذا وُجد عرض خاص)</label>
                                 <div class="relative">
-                                    <input type="number" step="0.01" name="compare_at_price" id="comparePriceInput" class="w-full border-gray-200 rounded-lg focus:ring-emerald-500 focus:border-emerald-500 shadow-sm pr-4 pl-12 text-red-500" placeholder="اتركه فارغاً إن لم يكن هنالك عرض">
+                                    <input type="number" step="0.01" name="compare_at_price" id="comparePriceInput" class="w-full border-gray-200 rounded-xl focus:ring-emerald-500 focus:border-emerald-500 shadow-sm pr-4 pl-12 text-red-500" placeholder="اتركه فارغاً في حال عدم وجود خصم">
                                     <span class="absolute left-3 top-2 text-gray-400 text-sm">SDG</span>
                                 </div>
                             </div>
 
                             <div>
                                 <label class="block text-sm font-semibold text-gray-700 mb-2">الكمية المتوفرة بالمخزون</label>
-                                <input type="number" name="stock" id="stockInput" min="0" value="1" class="w-full border-gray-200 rounded-lg focus:ring-emerald-500 focus:border-emerald-500 shadow-sm" placeholder="مثال: 10">
+                                <input type="number" name="stock" id="stockInput" min="0" value="1" class="w-full border-gray-200 rounded-xl focus:ring-emerald-500 focus:border-emerald-500 shadow-sm" placeholder="مثال: 10">
                             </div>
 
                             <div class="md:col-span-2">
-                                <label class="block text-sm font-semibold text-gray-700 mb-2">الباركود أو الرقم المتسلسل (QR / Barcode / SN)</label>
+                                <label class="block text-sm font-semibold text-gray-700 mb-2">الباركود أو الرقم المتسلسل للسلعة (Barcode / QR / SN)</label>
                                 <div class="relative flex items-center">
-                                    <input type="text" id="barcodeInput" name="barcode" class="w-full border-gray-200 rounded-lg focus:ring-emerald-500 focus:border-emerald-500 shadow-sm pl-14" placeholder="أدخل الرقم المتسلسل أو امسحه بالكاميرا">
-                                    <button type="button" data-modal-target="barcodeModal" data-modal-toggle="barcodeModal" onclick="startScanner()" class="absolute left-1.5 top-1.5 bg-blue-600 hover:bg-blue-700 text-white w-10 h-10 rounded-md flex items-center justify-center transition shadow-sm">
+                                    <input type="text" id="barcodeInput" name="barcode" class="w-full border-gray-200 rounded-xl focus:ring-emerald-500 focus:border-emerald-500 shadow-sm pl-14" placeholder="أدخل الرقم المتسلسل أو امسحه بالكاميرا مباشرة">
+                                    <button type="button" data-modal-target="barcodeModal" data-modal-toggle="barcodeModal" onclick="startScanner()" class="absolute left-1.5 top-1.5 bg-blue-600 hover:bg-blue-700 text-white w-10 h-10 rounded-lg flex items-center justify-center transition shadow-md">
                                         <i class="fa-solid fa-camera text-base"></i>
                                     </button>
                                 </div>
@@ -165,7 +253,7 @@
                             <div>
                                 <label class="block text-sm font-semibold text-gray-700 mb-2">صورة المنتج</label>
                                 <div class="flex items-center justify-center w-full">
-                                    <label class="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100 transition relative overflow-hidden">
+                                    <label class="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-gray-300 rounded-xl cursor-pointer bg-gray-50 hover:bg-gray-100 transition relative overflow-hidden">
                                         <div class="flex flex-col items-center justify-center pt-5 pb-6 text-center" id="uploadPlaceholder">
                                             <i class="fa-solid fa-image text-gray-400 text-2xl mb-2"></i>
                                             <p class="text-xs text-gray-500"><span class="font-semibold">اضغط لاختيار صورة</span></p>
@@ -196,10 +284,10 @@
                         </div>
 
                         <div class="flex justify-end gap-3 pt-4 border-t border-gray-100">
-                            <button type="button" id="cancelEditBtn" onclick="resetFormToCreate()" class="hidden bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold px-6 py-3 rounded-lg transition">
+                            <button type="button" id="cancelEditBtn" onclick="resetFormToCreate()" class="hidden bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold px-6 py-3 rounded-xl transition">
                                 إلغاء التعديل
                             </button>
-                            <button type="submit" id="submitBtn" class="w-full md:w-auto bg-emerald-500 hover:bg-emerald-600 text-white font-bold px-8 py-3 rounded-lg shadow-md transition flex items-center justify-center gap-2">
+                            <button type="submit" id="submitBtn" class="w-full md:w-auto bg-emerald-500 hover:bg-emerald-600 text-white font-bold px-8 py-3 rounded-xl shadow-md transition flex items-center justify-center gap-2">
                                 <span id="btnText"><i class="fa-solid fa-save ml-2"></i> حفظ المنتج ونشره</span>
                                 <span id="btnSpinner" class="hidden"><i class="fa-solid fa-circle-notch animate-spin text-lg"></i> جاري الحفظ والنشر...</span>
                             </button>
@@ -207,26 +295,26 @@
                     </form>
                 </div>
 
-                <div id="products-section" class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+                <div id="products-section" class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
                     <div class="flex justify-between items-center mb-6">
                         <h2 class="text-xl font-bold text-gray-900 flex items-center">
                             <i class="fa-solid fa-boxes-stacked text-emerald-500 ml-2"></i>
                             المنتجات المتوفرة حالياً في متجرك
                         </h2>
-                        <span class="text-xs bg-emerald-50 text-emerald-700 px-2.5 py-1 rounded-full font-bold">
+                        <span class="text-xs bg-emerald-50 text-emerald-700 px-3 py-1.5 rounded-full font-bold">
                             إجمالي المنتجات: {{ products | length }}
                         </span>
                     </div>
 
                     {% if not products %}
-                    <div class="text-center py-12 border-2 border-dashed border-gray-100 rounded-xl">
+                    <div class="text-center py-12 border-2 border-dashed border-gray-100 rounded-2xl">
                         <i class="fa-solid fa-box-open text-gray-300 text-5xl mb-3"></i>
                         <p class="text-gray-500 text-sm">لم تقم بإضافة أي منتجات حتى الآن، ابدأ بإضافة منتجك الأول!</p>
                     </div>
                     {% else %}
-                    <div class="overflow-x-auto rounded-xl border border-gray-150">
+                    <div class="overflow-x-auto rounded-2xl border border-gray-100">
                         <table class="w-full text-sm text-right text-gray-600">
-                            <thead class="bg-gray-50 text-gray-700 text-xs uppercase font-bold border-b border-gray-150">
+                            <thead class="bg-gray-50 text-gray-700 text-xs uppercase font-bold border-b border-gray-100">
                                 <tr>
                                     <th scope="col" class="px-6 py-4">صورة المنتج والمعلومات</th>
                                     <th scope="col" class="px-6 py-4">القسم</th>
@@ -237,9 +325,9 @@
                             </thead>
                             <tbody class="divide-y divide-gray-100">
                                 {% for product in products %}
-                                <tr class="hover:bg-gray-50 transition-colors">
+                                <tr class="hover:bg-gray-50/50 transition-colors">
                                     <td class="px-6 py-4 font-semibold text-gray-900 flex items-center gap-3">
-                                        <div class="w-12 h-12 rounded-lg overflow-hidden border border-gray-150 flex-shrink-0 bg-gray-100">
+                                        <div class="w-12 h-12 rounded-xl overflow-hidden border border-gray-200 flex-shrink-0 bg-gray-50 shadow-inner">
                                             {% if product.image_url %}
                                             <img src="{{ product.image_url }}" class="w-full h-full object-cover" alt="{{ product.name }}">
                                             {% else %}
@@ -249,12 +337,12 @@
                                             {% endif %}
                                         </div>
                                         <div>
-                                            <p class="font-bold text-gray-900">{{ product.name }}</p>
-                                            <p class="text-xs text-gray-400 font-normal">الماركة: {{ product.brand }}</p>
+                                            <p class="font-bold text-gray-900 text-sm">{{ product.name }}</p>
+                                            <p class="text-[11px] text-gray-400 font-normal">الماركة: {{ product.brand }}</p>
                                         </div>
                                     </td>
                                     <td class="px-6 py-4">
-                                        <span class="bg-gray-100 text-gray-700 text-xs font-semibold px-2.5 py-1 rounded-md">
+                                        <span class="bg-slate-100 text-slate-700 text-[11px] font-bold px-2.5 py-1 rounded-full">
                                             {{ product.category }}
                                         </span>
                                     </td>
@@ -263,7 +351,7 @@
                                             <span class="text-emerald-600 font-bold text-base">{{ product.price }} SDG</span>
                                             {% if product.compare_at_price %}
                                             <span class="text-red-400 line-through text-xs">{{ product.compare_at_price }} SDG</span>
-                                            <span class="text-[10px] text-red-500 font-bold">عرض خاص🔥</span>
+                                            <span class="text-[10px] text-rose-500 font-black mt-0.5">خصم فعال 🔥</span>
                                             {% endif %}
                                         </div>
                                     </td>
@@ -271,29 +359,29 @@
                                         <div class="space-y-1">
                                             <div>
                                                 {% if product.stock > 0 %}
-                                                <span class="text-xs bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded font-medium">متوفر ({{ product.stock }})</span>
+                                                <span class="text-xs bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded-md font-bold">متوفر ({{ product.stock }})</span>
                                                 {% else %}
-                                                <span class="text-xs bg-red-50 text-red-600 px-2 py-0.5 rounded font-medium">نفذت الكمية</span>
+                                                <span class="text-xs bg-rose-50 text-rose-600 px-2 py-0.5 rounded-md font-bold">نفذت الكمية</span>
                                                 {% endif %}
                                             </div>
-                                            {% if product.barcode %}
+                                            {% if product.barcode_qr %}
                                             <p class="text-[11px] text-gray-400 font-mono flex items-center gap-1">
-                                                <i class="fa-solid fa-barcode"></i> {{ product.barcode }}
+                                                <i class="fa-solid fa-barcode"></i> {{ product.barcode_qr }}
                                             </p>
                                             {% endif %}
                                         </div>
                                     </td>
                                     <td class="px-6 py-4 text-center">
                                         <div class="flex items-center justify-center gap-2">
-                                            <button type="button" 
+                                            <button type="button"
                                                     onclick="fillFormToEdit({{ product | tojson | forceescape }})"
-                                                    class="bg-blue-50 text-blue-600 hover:bg-blue-100 p-2.5 rounded-lg transition shadow-sm" 
+                                                    class="bg-blue-50 text-blue-600 hover:bg-blue-100 p-2.5 rounded-xl transition shadow-sm"
                                                     title="تعديل المنتج">
                                                 <i class="fa-solid fa-pen-to-square text-sm"></i>
                                             </button>
-                                            <a href="/delete_product/{{ product.id }}" 
+                                            <a href="/delete_product/{{ product.id }}"
                                                onclick="return confirm('هل أنت متأكد من رغبتك في حذف هذا المنتج بشكل نهائي؟ لا يمكن التراجع عن هذا الإجراء.');"
-                                               class="bg-red-50 text-red-600 hover:bg-red-100 p-2.5 rounded-lg transition shadow-sm" 
+                                               class="bg-rose-50 text-rose-600 hover:bg-rose-100 p-2.5 rounded-xl transition shadow-sm"
                                                title="حذف المنتج">
                                                 <i class="fa-solid fa-trash-can text-sm"></i>
                                             </a>
@@ -311,8 +399,61 @@
         </main>
     </div>
 
+    <div id="subscriptionModal" tabindex="-1" aria-hidden="true" class="fixed top-0 left-0 right-0 z-50 hidden w-full p-4 overflow-x-hidden overflow-y-auto md:inset-0 h-[calc(100%-1rem)] max-h-full bg-slate-900/60 flex items-center justify-center">
+        <div class="relative w-full max-w-lg max-h-full bg-white rounded-2xl shadow-xl">
+            <div class="flex items-center justify-between p-4 border-b border-gray-100">
+                <h3 class="text-lg font-bold text-gray-900">
+                    <i class="fa-solid fa-credit-card text-emerald-500 ml-2"></i> تجديد الاشتراك / ترقية الباقة
+                </h3>
+                <button type="button" data-modal-hide="subscriptionModal" class="text-gray-400 hover:bg-gray-100 hover:text-gray-900 rounded-lg text-sm w-8 h-8 inline-flex justify-center items-center">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+            
+            <form id="subscriptionForm" method="POST" action="/api/v1/submit-receipt" class="p-6 space-y-4 text-right">
+                <input type="hidden" name="tenant_id" value="{{ tenant.id }}">
+                
+                <div class="bg-emerald-50/50 border border-emerald-100 p-4 rounded-xl space-y-2 text-sm text-emerald-900">
+                    <p class="font-bold">🏦 بيانات سداد الاشتراك الشهري:</p>
+                    <p>قم بالتحويل عبر تطبيق <strong>بنكك (بنك الخرطوم)</strong> إلى الحساب التالي:</p>
+                    <div class="bg-white p-3 rounded-lg border border-emerald-200 font-mono text-center text-lg font-black text-emerald-800 tracking-wider">
+                        1234567 (باسم منصة DukkanSD)
+                    </div>
+                    <p class="text-xs text-emerald-700">بعد إتمام التحويل، يرجى ملء البيانات التالية ليرسل الإيصال للإدارة للتفعيل الفوري.</p>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-bold text-gray-700 mb-2">المبلغ المدفوع *</label>
+                    <div class="relative">
+                        <input type="number" name="amount" required class="w-full border-gray-200 rounded-xl focus:ring-emerald-500 focus:border-emerald-500" placeholder="مثال: 15000">
+                        <span class="absolute left-3 top-2.5 text-gray-400 text-sm font-semibold">SDG</span>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-bold text-gray-700 mb-2">الرقم المرجعي للتحويل (Ref) *</label>
+                    <input type="text" name="ref" required class="w-full border-gray-200 rounded-xl focus:ring-emerald-500 focus:border-emerald-500" placeholder="أدخل الرقم المرجعي المكون من أرقام">
+                </div>
+
+                <div>
+                    <label class="block text-sm font-bold text-gray-700 mb-2">صورة الإيصال (اختياري)</label>
+                    <input type="file" name="receipt_image" accept="image/*" class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-semibold file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100 cursor-pointer">
+                </div>
+
+                <div class="flex justify-end gap-3 pt-4 border-t border-gray-150">
+                    <button type="button" data-modal-hide="subscriptionModal" class="bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold px-5 py-2.5 rounded-xl transition">
+                        إغلاق
+                    </button>
+                    <button type="submit" class="bg-emerald-500 hover:bg-emerald-600 text-white font-bold px-6 py-2.5 rounded-xl transition flex items-center gap-2 shadow-md">
+                        <i class="fa-solid fa-paper-plane"></i> إرسال إثبات السداد للتفعيل
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <div id="barcodeModal" tabindex="-1" aria-hidden="true" class="fixed top-0 left-0 right-0 z-50 hidden w-full p-4 overflow-x-hidden overflow-y-auto md:inset-0 h-[calc(100%-1rem)] max-h-full bg-slate-900/60 flex items-center justify-center">
-        <div class="relative w-full max-w-md max-h-full bg-white rounded-xl shadow-lg">
+        <div class="relative w-full max-w-md max-h-full bg-white rounded-2xl shadow-lg">
             <div class="flex items-center justify-between p-4 border-b border-gray-100">
                 <h3 class="text-lg font-bold text-gray-900">
                     <i class="fa-solid fa-qrcode ml-2 text-emerald-500"></i> مسح الرمز بالكاميرا
@@ -323,16 +464,16 @@
             </div>
             <div class="p-6 space-y-4">
                 <p class="text-xs text-gray-500 mb-2">وجه كاميرا الهاتف الخلفية نحو الرمز (الرقم المتسلسل/الباركود) بشكل موازي.</p>
-                <div class="overflow-hidden rounded-lg shadow-inner bg-black relative">
+                <div class="overflow-hidden rounded-2xl shadow-inner bg-black relative">
                     <div id="reader"></div>
                 </div>
-                <button type="button" id="manualScanBtn" class="w-full bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold py-2.5 rounded-lg transition flex items-center justify-center">
+                <button type="button" id="manualScanBtn" class="w-full bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold py-2.5 rounded-xl transition flex items-center justify-center">
                     <i class="fa-solid fa-camera-retro ml-2"></i> التقاط وإعادة تركيز الكاميرا يدوياً
                 </button>
             </div>
             <div class="flex items-center justify-between p-4 border-t border-gray-100">
                 <span class="text-xs text-gray-400" id="scanStatus">جاري تهيئة الكاميرا...</span>
-                <button type="button" onclick="stopScanner()" data-modal-hide="barcodeModal" class="text-sm bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold px-4 py-2 rounded-lg transition">
+                <button type="button" onclick="stopScanner()" data-modal-hide="barcodeModal" class="text-sm bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold px-4 py-2 rounded-xl transition">
                     إغلاق الكاميرا
                 </button>
             </div>
@@ -505,9 +646,9 @@
             const specId = 'spec_' + Date.now() + Math.random().toString(36).substr(2, 5);
             const html = `
                 <div class="flex items-center space-x-2 space-x-reverse bg-gray-50 p-2.5 rounded-lg border border-gray-150" id="${specId}">
-                    <input type="text" value="${key}" placeholder="الميزة" class="spec-key w-1/3 border-gray-200 rounded-lg text-sm focus:ring-emerald-500 focus:border-emerald-500">
-                    <input type="text" value="${value}" placeholder="القيمة" class="spec-value w-2/3 border-gray-200 rounded-lg text-sm focus:ring-emerald-500 focus:border-emerald-500">
-                    <button type="button" onclick="document.getElementById('${specId}').remove()" class="text-red-500 hover:text-red-700 p-1.5 transition">
+                    <input type="text" value="${key}" placeholder="الميزة" class="spec-key w-1/3 border-gray-200 rounded-xl text-sm focus:ring-emerald-500 focus:border-emerald-500">
+                    <input type="text" value="${value}" placeholder="القيمة" class="spec-value w-2/3 border-gray-200 rounded-xl text-sm focus:ring-emerald-500 focus:border-emerald-500">
+                    <button type="button" onclick="document.getElementById('${specId}').remove()" class="text-rose-500 hover:text-rose-700 p-1.5 transition">
                         <i class="fa-solid fa-trash-can"></i>
                     </button>
                 </div>
@@ -517,15 +658,12 @@
 
         // ------------------ 6. جافا سكريبت لتعبئة النموذج وتعديل المنتج ------------------
         function fillFormToEdit(product) {
-            // الانتقال تدريجياً لنموذج التعديل أعلى الصفحة
             window.scrollTo({ top: 0, behavior: 'smooth' });
 
-            // تغيير عنوان الفورمة والزرار
             document.getElementById('formTitle').innerHTML = '<i class="fa-solid fa-pen-to-square text-emerald-500 ml-2"></i> تعديل بيانات المنتج الحالي';
             document.getElementById('btnText').innerHTML = '<i class="fa-solid fa-check ml-2"></i> حفظ التحديثات';
             document.getElementById('cancelEditBtn').classList.remove('hidden');
 
-            // تعبئة الحقول بالقيم الحالية
             document.getElementById('productIdInput').value = product.id;
             document.getElementById('nameInput').value = product.name;
             document.getElementById('categorySelect').value = product.category;
@@ -533,12 +671,10 @@
             document.getElementById('priceInput').value = product.price;
             document.getElementById('comparePriceInput').value = product.compare_at_price || '';
             document.getElementById('stockInput').value = product.stock;
-            document.getElementById('barcodeInput').value = product.barcode || '';
+            document.getElementById('barcodeInput').value = product.barcode_qr || '';
 
-            // تغيير مسار الإرسال في الـ form إلى مسار التعديل
             document.getElementById('productForm').action = "/edit_product";
 
-            // تفريغ المواصفات القديمة وبناؤها مجدداً إن وجدت
             specsContainer.innerHTML = '';
             if (product.specifications) {
                 let specs = {};
@@ -552,7 +688,6 @@
                 }
             }
 
-            // عرض الصورة المرفوعة مسبقاً إذا كانت موجودة
             if (product.image_url) {
                 const preview = document.getElementById('imagePreview');
                 const previewContainer = document.getElementById('imagePreviewContainer');
@@ -564,12 +699,11 @@
             }
         }
 
-        // إعادة ضبط النموذج لوضعه الطبيعي (إضافة منتج جديد)
         function resetFormToCreate() {
             document.getElementById('formTitle').innerHTML = '<i class="fa-solid fa-circle-plus text-emerald-500 ml-2"></i> إضافة منتج جديد للمتجر';
             document.getElementById('btnText').innerHTML = '<i class="fa-solid fa-save ml-2"></i> حفظ المنتج ونشره';
             document.getElementById('cancelEditBtn').classList.add('hidden');
-            
+
             document.getElementById('productForm').reset();
             document.getElementById('productIdInput').value = '';
             document.getElementById('productForm').action = "/add_product";
@@ -601,6 +735,17 @@
             submitBtn.disabled = true;
             btnText.classList.add('hidden');
             btnSpinner.classList.remove('hidden');
+        });
+
+        // ------------------ 8. معالجة إرسال إيصال تجديد الاشتراك ------------------
+        const subscriptionForm = document.getElementById('subscriptionForm');
+        subscriptionForm.addEventListener('submit', function(e) {
+            // سنترك النموذج يرسل البيانات للـ API الخلفية بشكل قياسي وتحديث الحالة
+            setTimeout(() => {
+                alert("تم إرسال إثبات السداد بنجاح! 🎉 ستتم مراجعته من قبل الإدارة فوراً وتفعيل الاشتراك.");
+                const closeBtn = document.querySelector('[data-modal-hide="subscriptionModal"]');
+                if (closeBtn) closeBtn.click();
+            }, 500);
         });
     </script>
 </body>
