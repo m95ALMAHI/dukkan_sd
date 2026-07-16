@@ -539,32 +539,38 @@
     </div>
 
     <div id="subscriptionModal" tabindex="-1" aria-hidden="true" class="fixed top-0 left-0 right-0 z-50 hidden w-full p-4 overflow-x-hidden overflow-y-auto md:inset-0 h-[calc(100%-1rem)] max-h-full bg-slate-900/60 flex items-center justify-center">
-        <div class="relative w-full max-w-lg max-h-full bg-white rounded-2xl shadow-xl">
-            <div class="flex items-center justify-between p-4 border-b border-gray-100">
-                <h3 class="text-lg font-bold text-gray-900"><i class="fa-solid fa-credit-card text-emerald-500 ml-2"></i> تجديد الاشتراك / ترقية الباقة</h3>
-                <button type="button" data-modal-hide="subscriptionModal" class="text-gray-400 hover:bg-gray-100 hover:text-gray-900 rounded-lg text-sm w-8 h-8 inline-flex justify-center items-center"><i class="fa-solid fa-xmark text-lg"></i></button>
-            </div>
-            <form id="subscriptionForm" method="POST" action="/api/v1/submit-receipt" class="p-6 space-y-4 text-right">
-                <input type="hidden" name="tenant_id" value="{{ tenant.id }}">
-                <div class="bg-emerald-50/50 border border-emerald-100 p-4 rounded-xl space-y-2 text-sm text-emerald-900">
-                    <p class="font-bold">🏦 بيانات سداد الاشتراك الشهري:</p>
-                    <div class="bg-white p-3 rounded-lg border border-emerald-200 font-mono text-center text-lg font-black text-emerald-800 tracking-wider">1234567 (باسم منصة DukkanSD)</div>
-                </div>
-                <div>
-                    <label class="block text-sm font-bold text-gray-700 mb-2">المبلغ المدفوع *</label>
-                    <input type="number" name="amount" required class="w-full border-gray-200 rounded-xl focus:ring-emerald-500 focus:border-emerald-500">
-                </div>
-                <div>
-                    <label class="block text-sm font-bold text-gray-700 mb-2">الرقم المرجعي للتحويل (Ref) *</label>
-                    <input type="text" name="ref" required class="w-full border-gray-200 rounded-xl focus:ring-emerald-500 focus:border-emerald-500">
-                </div>
-                <div class="flex justify-end gap-3 pt-4 border-t border-gray-150">
-                    <button type="button" data-modal-hide="subscriptionModal" class="bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold px-5 py-2.5 rounded-xl transition">إلغاء</button>
-                    <button type="submit" class="bg-emerald-500 hover:bg-emerald-600 text-white font-bold px-6 py-2.5 rounded-xl transition shadow-md">إرسال للتفعيل</button>
-                </div>
-            </form>
+    <div class="relative w-full max-w-lg max-h-full bg-white rounded-2xl shadow-xl">
+        <div class="flex items-center justify-between p-4 border-b border-gray-100">
+            <h3 class="text-lg font-bold text-gray-900"><i class="fa-solid fa-credit-card text-emerald-500 ml-2"></i> تجديد الاشتراك / ترقية الباقة</h3>
+            <button type="button" data-modal-hide="subscriptionModal" class="text-gray-400 hover:bg-gray-100 hover:text-gray-900 rounded-lg text-sm w-8 h-8 inline-flex justify-center items-center"><i class="fa-solid fa-xmark text-lg"></i></button>
         </div>
+        <form id="subscriptionForm" onsubmit="submitSubscription(event)" class="p-6 space-y-4 text-right">
+            <input type="hidden" id="sub_tenant_id" name="tenant_id" value="{{ tenant.id }}">
+            <div class="bg-emerald-50/50 border border-emerald-100 p-4 rounded-xl space-y-2 text-sm text-emerald-900">
+                <p class="font-bold">🏦 بيانات سداد الاشتراك الشهري:</p>
+                <div class="bg-white p-3 rounded-lg border border-emerald-200 font-mono text-center text-lg font-black text-emerald-800 tracking-wider">
+                    حساب رقم: 2652076 <br>
+                    <span class="text-sm font-normal text-gray-600">(باسم: مصطفى الماحي - منصة DukkanSD)</span>
+                </div>
+            </div>
+            <div>
+                <label class="block text-sm font-bold text-gray-700 mb-2">المبلغ المدفوع *</label>
+                <input type="number" id="sub_amount" name="amount" required class="w-full border-gray-200 rounded-xl focus:ring-emerald-500 focus:border-emerald-500">
+            </div>
+            <div>
+                <label class="block text-sm font-bold text-gray-700 mb-2">الرقم المرجعي للتحويل (Ref) *</label>
+                <input type="text" id="sub_ref" name="ref" required class="w-full border-gray-200 rounded-xl focus:ring-emerald-500 focus:border-emerald-500">
+            </div>
+            <div class="flex justify-end gap-3 pt-4 border-t border-gray-150">
+                <button type="button" data-modal-hide="subscriptionModal" class="bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold px-5 py-2.5 rounded-xl transition">إلغاء</button>
+                <button type="submit" id="sub_submit_btn" class="bg-emerald-500 hover:bg-emerald-600 text-white font-bold px-6 py-2.5 rounded-xl transition shadow-md flex items-center gap-2">
+                    <span>إرسال للتفعيل</span>
+                </button>
+            </div>
+        </form>
     </div>
+</div>
+
 
     <div id="barcodeModal" tabindex="-1" aria-hidden="true" class="fixed top-0 left-0 right-0 z-50 hidden w-full p-4 overflow-x-hidden overflow-y-auto md:inset-0 h-[calc(100%-1rem)] max-h-full bg-slate-900/60 flex items-center justify-center">
         <div class="relative w-full max-w-md max-h-full bg-white rounded-2xl shadow-lg">
@@ -592,93 +598,127 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/flowbite/2.2.1/flowbite.min.js"></script>
 
     <script>
-        function toggleSidebar() {
-            const sidebar = document.getElementById('sidebar-menu');
-            const backdrop = document.getElementById('sidebar-backdrop');
-            sidebar.classList.toggle('translate-x-full');
-            backdrop.classList.toggle('hidden');
-        }
+        // 1. حل مشكلة تجديد الاشتراك وإرسال البيانات كـ JSON لتجنب خطأ Unsupported Media Type
+async function submitSubscription(event) {
+    event.preventDefault(); // إيقاف الإرسال الافتراضي للفورم
+    
+    const submitBtn = document.getElementById('sub_submit_btn');
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = `<i class="fa-solid fa-circle-notch animate-spin"></i> جاري الإرسال...`;
 
-        function copyStoreUrl() {
-            const urlText = document.getElementById('storeUrl').innerText.trim();
-            navigator.clipboard.writeText(urlText).then(() => alert("تم نسخ الرابط! 🎉"));
-        }
+    const payload = {
+        tenant_id: document.getElementById('sub_tenant_id').value,
+        amount: parseFloat(document.getElementById('sub_amount').value),
+        ref: document.getElementById('sub_ref').value
+    };
 
-        function previewImage(event) {
-            const file = event.target.files[0];
-            const preview = document.getElementById('imagePreview');
-            const previewContainer = document.getElementById('imagePreviewContainer');
-            const placeholder = document.getElementById('uploadPlaceholder');
-            if (file) {
-                const reader = new FileReader();
-                reader.onload = e => { preview.src = e.target.result; previewContainer.classList.remove('hidden'); placeholder.classList.add('hidden'); }
-                reader.readAsDataURL(file);
-            }
-        }
-
-        function removeImage(event) {
-            if(event) event.preventDefault();
-            document.getElementById('imageInput').value = "";
-            document.getElementById('imagePreview').src = "";
-            document.getElementById('imagePreviewContainer').classList.add('hidden');
-            document.getElementById('uploadPlaceholder').classList.remove('hidden');
-        }
-
-        // ------------------ إدارة وتفعيل الميزات يدوياً (Local Storage للتجربة والمحاكاة) ------------------
-        function toggleFeature(featureKey) {
-            const checkbox = document.getElementById(`toggle-${featureKey === 'analytics' ? 'analytics' : featureKey === 'stockAlerts' ? 'stock-alerts' : 'block-users'}`);
-            localStorage.setItem(`feature_${featureKey}`, checkbox.checked);
-            console.log(`الميزة ${featureKey} أصبحت حالتها: ${checkbox.checked}`);
-            // هنا يظهر إشعار للمدير بنجاح حفظ حالتها
-        }
-
-        // تحميل حالة الميزات عند فتح الصفحة
-        document.addEventListener("DOMContentLoaded", () => {
-            ['analytics', 'stockAlerts', 'blockUsers'].forEach(key => {
-                const isEnabled = localStorage.getItem(`feature_${key}`) === 'true';
-                const inputId = key === 'analytics' ? 'toggle-analytics' : key === 'stockAlerts' ? 'toggle-stock-alerts' : 'toggle-block-users';
-                const el = document.getElementById(inputId);
-                if(el) el.checked = isEnabled;
-            });
+    try {
+        const response = await fetch('/api/v1/submit-receipt', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json', // تحديد نوع المحتوى كـ JSON بشكل صريح للـ Backend
+                'Accept': 'application/json'
+            },
+            body: JSON.stringify(payload)
         });
 
-        // تحقق من تطابق كلمتي المرور قبل الإرسال
-        document.getElementById('changePasswordForm').addEventListener('submit', function(e) {
-            const nPass = document.getElementById('newPassword').value;
-            const cPass = document.getElementById('confirmPassword').value;
-            if(nPass !== cPass) {
-                e.preventDefault();
-                alert("خطأ: كلمة المرور الجديدة وتأكيدها غير متطابقتين! ❌");
-            }
+        if (response.ok) {
+            const result = await response.json();
+            alert("تم إرسال إيصال التحويل بنجاح! سيتم مراجعته وتفعيل الاشتراك خلال دقائق. 🎉");
+            location.reload(); // إعادة تحميل الصفحة لتحديث البيانات
+        } else {
+            const errData = await response.json().catch(() => ({}));
+            alert(`حدث خطأ أثناء الإرسال: ${errData.message || response.statusText}`);
+        }
+    } catch (error) {
+        console.error("Error submitting receipt:", error);
+        alert("فشل الاتصال بالخادم. يرجى التحقق من اتصال الإنترنت والمحاولة مرة أخرى.");
+    } finally {
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = `إرسال للتفعيل`;
+    }
+}
+
+// 2. حل مشكلة التعديل على المنتجات وإرسال المعرف بشكل صحيح
+function fillFormToEdit(product) {
+    // تغيير عنوان الفورم والزر ليوضح حالة التعديل
+    document.getElementById('formTitle').innerHTML = `<i class="fa-solid fa-pen-to-square text-amber-500 ml-2"></i> تعديل المنتج: ${product.name}`;
+    document.getElementById('btnText').innerHTML = `<i class="fa-solid fa-save ml-2"></i> حفظ التعديلات`;
+    document.getElementById('cancelEditBtn').classList.remove('hidden');
+    
+    // توجيه الأكشن الخاص بالفورم ديناميكياً إلى مسار التعديل بدلاً من الإضافة لمنع تضارب قاعدة البيانات
+    document.getElementById('productForm').action = `/edit_product/${product.id}`;
+    
+    // ملء الحقول بالبيانات الحالية
+    document.getElementById('productIdInput').value = product.id;
+    document.getElementById('nameInput').value = product.name;
+    document.getElementById('categorySelect').value = product.category;
+    document.getElementById('brandInput').value = product.brand;
+    document.getElementById('priceInput').value = product.price;
+    document.getElementById('comparePriceInput').value = product.compare_at_price || '';
+    document.getElementById('stockInput').value = product.stock;
+    document.getElementById('barcodeInput').value = product.barcode || '';
+    
+    // معالجة معاينة الصورة الحالية إن وجدت
+    if (product.image_url) {
+        document.getElementById('imagePreview').src = product.image_url;
+        document.getElementById('imagePreviewContainer').classList.remove('hidden');
+        document.getElementById('uploadPlaceholder').classList.add('hidden');
+    } else {
+        removeImage();
+    }
+
+    // الانتقال بالفورم إلى منطقة الرؤية للمستخدم بسلاسة
+    document.getElementById('productForm').scrollIntoView({ behavior: 'smooth' });
+}
+
+// دالة إلغاء التعديل والعودة لوضع الإضافة الافتراضي
+function resetFormToCreate() {
+    document.getElementById('formTitle').innerHTML = `<i class="fa-solid fa-circle-plus text-emerald-500 ml-2"></i> إضافة منتج جديد للمتجر`;
+    document.getElementById('btnText').innerHTML = `<i class="fa-solid fa-save ml-2"></i> حفظ المنتج ونشره`;
+    document.getElementById('cancelEditBtn').classList.add('hidden');
+    document.getElementById('productForm').action = `/add_product`;
+    document.getElementById('productForm').reset();
+    removeImage();
+}
+
+// 3. تفعيل وإرسال ميزات المدير لقاعدة البيانات (Backend) فور النقر
+async function toggleFeature(featureKey) {
+    const inputId = featureKey === 'analytics' ? 'toggle-analytics' : featureKey === 'stockAlerts' ? 'toggle-stock-alerts' : 'toggle-block-users';
+    const checkbox = document.getElementById(inputId);
+    const isEnabled = checkbox.checked;
+
+    // حفظ الحالة محلياً أولاً
+    localStorage.setItem(`feature_${featureKey}`, isEnabled);
+
+    try {
+        // إرسال طلب إلى الـ API لتحديث الحالة في السيرفر/قاعدة البيانات فعلياً
+        const response = await fetch('/api/v1/toggle-feature', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                feature_name: featureKey,
+                is_enabled: isEnabled
+            })
         });
 
-        // الباركود والطباعة كما هي
-        let html5QrcodeScanner;
-        function startScanner() {
-            html5QrcodeScanner = new Html5Qrcode("reader");
-            html5QrcodeScanner.start({ facingMode: "environment" }, { fps: 25, qrbox: { width: 250, height: 150 } }, 
-            text => { document.getElementById('barcodeInput').value = text; stopScanner(); document.querySelector('[data-modal-hide="barcodeModal"]').click(); });
+        if (response.ok) {
+            console.log(`تم تحديث الميزة ${featureKey} بنجاح على الخادم.`);
+        } else {
+            console.error("فشل تحديث الميزة على السيرفر.");
+            // إعادة الزر لوضعه السابق في حال فشل الاتصال بالخادم
+            checkbox.checked = !isEnabled;
+            localStorage.setItem(`feature_${featureKey}`, !isEnabled);
         }
-        function stopScanner() { if (html5QrcodeScanner && html5QrcodeScanner.isScanning) html5QrcodeScanner.stop(); }
+    } catch (err) {
+        console.error("Network error updating feature:", err);
+        checkbox.checked = !isEnabled;
+        localStorage.setItem(`feature_${featureKey}`, !isEnabled);
+    }
+}
 
-        function filterOrders(status) {
-            document.querySelectorAll('.order-row').forEach(row => {
-                row.style.display = (status === 'all' || row.getAttribute('data-status') === status) ? 'table-row' : 'none';
-            });
-        }
-        function updateOrderStatus(id, status) { alert(`تم تحديث حالة الطلب ${id} إلى ${status}`); }
-        function printInvoice(id, name, addr, items, total) {
-            document.getElementById('print-order-id').innerText = id; document.getElementById('print-customer-name').innerText = name;
-            document.getElementById('print-customer-address').innerText = addr; document.getElementById('print-order-items').innerText = items;
-            document.getElementById('print-order-total').innerText = total;
-            document.getElementById('invoice-print-section').classList.remove('hidden'); window.print(); document.getElementById('invoice-print-section').classList.add('hidden');
-        }
-
-        const specsContainer = document.getElementById('specificationsContainer');
-        function addNewSpecification(key = "", value = "") {
-            const specId = 'spec_' + Date.now();
-            specsContainer.insertAdjacentHTML('beforeend', `<div class="flex items-center space-x-2 space-x-reverse bg-gray-50 p-2 rounded-lg" id="${specId}"><input type="text" value="${key}" class="spec-key w-1/3 border-gray-200 rounded-xl text-sm"><input type="text" value="${value}" class="spec-value w-2/3 border-gray-200 rounded-xl text-sm"><button type="button" onclick="document.getElementById('${specId}').remove()" class="text-rose-500 p-1"><i class="fa-solid fa-trash-can"></i></button></div>`);
-        }
     </script>
 </body>
 </html>
